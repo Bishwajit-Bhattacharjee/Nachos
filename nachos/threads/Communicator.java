@@ -14,6 +14,21 @@ public class Communicator {
      * Allocate a new communicator.
      */
     public Communicator() {
+        this.lock = new Lock();
+
+        isSpeakerWaiting = false;
+        hasMessage = false;
+        wantToListen = false;
+        hasSpoken = false;
+        hasListened = false;
+        isListenerWaiting = false;
+
+        speakerWaitingCond = new Condition(lock);
+        hasMessageCond = new Condition(lock);
+        wantToListenCond = new Condition(lock);
+        hasSpokenCond = new Condition(lock);
+        hasListenedCond = new Condition(lock);
+        listenerWaitingCond = new Condition(lock);
     }
 
     /**
@@ -26,7 +41,58 @@ public class Communicator {
      *
      * @param    word    the integer to transfer.
      */
+
+    private Lock lock;
+
+    private int message;
+
+    private boolean isSpeakerWaiting;
+    private Condition speakerWaitingCond;
+
+    private boolean hasMessage;
+    private Condition hasMessageCond;
+
+    private boolean wantToListen;
+    private Condition wantToListenCond;
+
+    private boolean hasSpoken;
+    private Condition hasSpokenCond;
+
+    private boolean hasListened;
+    private Condition hasListenedCond;
+
+    private boolean isListenerWaiting;
+    private Condition listenerWaitingCond;
+
     public void speak(int word) {
+
+        lock.acquire();
+
+        while(isSpeakerWaiting) speakerWaitingCond.sleep();
+        isSpeakerWaiting = true;
+
+        hasMessage = true;
+        hasMessageCond.wake();
+
+        while(!wantToListen) wantToListenCond.sleep();
+
+        message = word;
+        System.out.println(KThread.currentThread().getName()+" spoke "+word);
+
+        hasMessage = false;
+
+        hasSpoken = true;
+        hasSpokenCond.wake();
+
+        while(!hasListened) hasListenedCond.sleep();
+
+        hasListened = false;
+
+        isSpeakerWaiting = false;
+        speakerWaitingCond.wake();
+
+        lock.release();
+
     }
 
     /**
@@ -36,6 +102,35 @@ public class Communicator {
      * @return the integer transferred.
      */
     public int listen() {
-        return 0;
+
+        lock.acquire();
+
+        while(isListenerWaiting) listenerWaitingCond.sleep();
+        isListenerWaiting = true;
+
+        while(!hasMessage) hasMessageCond.sleep();
+
+        wantToListen = true;
+        wantToListenCond.wake();
+
+        while(!hasSpoken) hasSpokenCond.sleep();
+
+        int retVal = message;
+        System.out.println(KThread.currentThread().getName()+" listened "+message);
+
+        wantToListen = false;
+
+        hasListened = true;
+        hasListenedCond.wake();
+
+        hasSpoken = false;
+
+        isListenerWaiting = false;
+        listenerWaitingCond.wake();
+
+        lock.release();
+
+        return retVal;
+
     }
 }
