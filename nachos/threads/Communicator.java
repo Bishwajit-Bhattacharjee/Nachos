@@ -1,7 +1,5 @@
 package nachos.threads;
 
-import nachos.machine.*;
-
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
  * messages. Multiple threads can be waiting to <i>speak</i>,
@@ -131,6 +129,89 @@ public class Communicator {
         lock.release();
 
         return retVal;
+
+    }
+
+    private static class Speaker implements Runnable{
+
+        Speaker(Communicator communicator)
+        {
+            this.communicator = communicator;
+        }
+
+        private Communicator communicator;
+
+        @Override
+        public void run() {
+            for(int i = 0; i < 5; i++)
+            {
+              //  KThread.yield();
+                this.communicator.speak(i);
+              //  KThread.yield();
+            }
+        }
+    }
+
+    private static class Listener implements Runnable{
+
+        Listener(Communicator communicator)
+        {
+            this.communicator = communicator;
+        }
+
+        private Communicator communicator;
+
+        @Override
+        public void run() {
+            for(int i = 0; i < 5; i++)
+            {
+              //  KThread.yield();
+                this.communicator.listen();
+               // KThread.yield();
+            }
+        }
+    }
+
+    public static void selfTest()
+    {
+        Communicator communicator = new Communicator();
+
+        KThread t0 = new KThread(new Speaker(communicator)).setName("speaker " + 0);
+        KThread t1 = new KThread(new Speaker(communicator)).setName("speaker " + 1);
+        KThread t2 = new KThread(new Speaker(communicator)).setName("speaker " + 2);
+        KThread t3 = new KThread(new Speaker(communicator)).setName("speaker " + 3);
+        KThread t4 = new KThread(new Speaker(communicator)).setName("speaker " + 4);
+
+
+        KThread t00 = new KThread(new Listener(communicator)).setName("listener " + 0);
+        KThread t11 = new KThread(new Listener(communicator)).setName("listener " + 1);
+        KThread t22 = new KThread(new Listener(communicator)).setName("listener " + 2);
+        KThread t33 = new KThread(new Listener(communicator)).setName("listener " + 3);
+        KThread t44 = new KThread(new Listener(communicator)).setName("listener " + 4);
+
+        t0.fork();
+        t1.fork();
+        t2.fork();
+        t3.fork();
+        t4.fork();
+
+        t00.fork();
+        t11.fork();
+        t22.fork();
+        t33.fork();
+        t44.fork();
+
+        t0.join();
+        t1.join();
+        t2.join();
+        t3.join();
+        t4.join();
+
+        t00.join();
+        t11.join();
+        t22.join();
+        t33.join();
+        t44.join();
 
     }
 }

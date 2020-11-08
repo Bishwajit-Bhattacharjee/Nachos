@@ -115,9 +115,16 @@ public class Alarm {
     }
 
     public static void selfTest() {
-        new KThread(new PingTest(1,1000)).setName("1 Alarm thread").fork();
-        new KThread(new Alarm.PingTest(2,5000)).setName("2 Alarm thread").fork();
-        new KThread(new Alarm.PingTest(3,100000)).setName("3 Alarm thread").fork();
+        KThread t1 = new KThread(new PingTest(1,1000)).setName("1 Alarm thread");
+        KThread t2 = new KThread(new Alarm.PingTest(2,5000)).setName("2 Alarm thread");
+        KThread t3 = new KThread(new Alarm.PingTest(3,100000)).setName("3 Alarm thread");
+        t1.fork();
+        t2.fork();
+        t3.fork();
+
+        t1.join();
+        t2.join();
+        t3.join();
     }
 
 
