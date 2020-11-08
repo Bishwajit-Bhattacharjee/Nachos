@@ -21,12 +21,12 @@ public class Communicator {
         hasListened = false;
         isListenerWaiting = false;
 
-        speakerWaitingCond = new Condition(lock);
-        hasMessageCond = new Condition(lock);
-        wantToListenCond = new Condition(lock);
-        hasSpokenCond = new Condition(lock);
-        hasListenedCond = new Condition(lock);
-        listenerWaitingCond = new Condition(lock);
+        speakerWaitingCond = new Condition2(lock);
+        hasMessageCond = new Condition2(lock);
+        wantToListenCond = new Condition2(lock);
+        hasSpokenCond = new Condition2(lock);
+        hasListenedCond = new Condition2(lock);
+        listenerWaitingCond = new Condition2(lock);
     }
 
     /**
@@ -45,22 +45,22 @@ public class Communicator {
     private int message;
 
     private boolean isSpeakerWaiting;
-    private Condition speakerWaitingCond;
+    private Condition2 speakerWaitingCond;
 
     private boolean hasMessage;
-    private Condition hasMessageCond;
+    private Condition2 hasMessageCond;
 
     private boolean wantToListen;
-    private Condition wantToListenCond;
+    private Condition2 wantToListenCond;
 
     private boolean hasSpoken;
-    private Condition hasSpokenCond;
+    private Condition2 hasSpokenCond;
 
     private boolean hasListened;
-    private Condition hasListenedCond;
+    private Condition2 hasListenedCond;
 
     private boolean isListenerWaiting;
-    private Condition listenerWaitingCond;
+    private Condition2 listenerWaitingCond;
 
     public void speak(int word) {
 
