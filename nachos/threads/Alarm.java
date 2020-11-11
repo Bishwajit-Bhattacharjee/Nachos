@@ -2,7 +2,7 @@ package nachos.threads;
 
 import nachos.machine.*;
 
-import java.util.ArrayList;
+import java.util.PriorityQueue;
 
 /**
  * Uses the hardware timer to provide preemption, and to allow threads to sleep
@@ -17,6 +17,7 @@ public class Alarm {
      * alarm.
      */
     public Alarm() {
+        waitingKThreads = new PriorityQueue<>();
         Machine.timer().setInterruptHandler(new Runnable() {
             public void run() {
                 timerInterrupt();
@@ -31,7 +32,16 @@ public class Alarm {
      * that should be run.
      */
     public void timerInterrupt() {
-        // suspendedList
+
+
+        while (!waitingKThreads.isEmpty() && waitingKThreads.peek().time <= Machine.timer().getTime())
+        {
+            PendingKThread pendingKThread = waitingKThreads.poll();
+            Lib.assertTrue(pendingKThread.time <= Machine.timer().getTime());
+            pendingKThread.kThread.ready();
+        }
+
+
         KThread.currentThread().yield();
     }
 
@@ -49,17 +59,77 @@ public class Alarm {
      * @see    nachos.machine.Timer#getTime()
      */
     public void waitUntil(long x) {
-        // for now, cheat just to get something working (busy waiting is bad)
-        // Interrupt Disabled
-        // suspendedList.add(KThread, x) ;
-        // Enable
-        // KThead.sleep();
 
-        long wakeTime = Machine.timer().getTime() + x;
-        while (wakeTime > Machine.timer().getTime())
-            KThread.yield();
+        boolean intStatus = Machine.interrupt().disable();
+
+        waitingKThreads.add(new PendingKThread(KThread.currentThread(),
+                Machine.timer().getTime() + x)
+        );
+        KThread.sleep();
+
+        Machine.interrupt().restore(intStatus);
+
+//        long wakeTime = Machine.timer().getTime() + x;
+//        while (wakeTime > Machine.timer().getTime())
+//            KThread.yield();
     }
 
-    //private ArrayList<KThread> suspendedList;
+    private class PendingKThread implements Comparable {
+        PendingKThread(KThread kThread, long time) {
+            this.kThread = kThread;
+            this.time = time;
+        }
+
+        public int compareTo(Object o) {
+            PendingKThread pendingKThread = (PendingKThread) o;
+
+            if (this.time < pendingKThread.time)
+                return -1;
+            else if (this.time > pendingKThread.time)
+                return 1;
+            else
+                return this.kThread.compareTo(pendingKThread.kThread);
+        }
+
+        private long time;
+        private KThread kThread;
+    }
+
+
+    private static class PingTest implements Runnable {
+        PingTest(int which,long time) {
+            this.which = which;
+            this.time = time;
+        }
+
+        public void run()
+        {
+            System.out.println(which + " rings at " + Machine.timer().getTime());
+            ThreadedKernel.alarm.waitUntil(time);
+            System.out.println(which + " rings at " + Machine.timer().getTime());
+
+        }
+
+        private int which;
+        private long time;
+    }
+
+    public static void selfTest() {
+        KThread t1 = new KThread(new PingTest(1,1000)).setName("1 Alarm thread");
+        KThread t2 = new KThread(new Alarm.PingTest(2,5000)).setName("2 Alarm thread");
+        KThread t3 = new KThread(new Alarm.PingTest(3,100000)).setName("3 Alarm thread");
+        t1.fork();
+        t2.fork();
+        t3.fork();
+
+        t1.join();
+        t2.join();
+        t3.join();
+    }
+
+
+
+
+    private PriorityQueue<PendingKThread> waitingKThreads;
 
 }

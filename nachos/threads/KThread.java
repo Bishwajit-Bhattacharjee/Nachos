@@ -186,6 +186,10 @@ public class KThread {
 
         Machine.interrupt().disable();
 
+        if(currentThread.joinCaller != null) {
+            currentThread.joinCaller.ready();
+        }
+
         Machine.autoGrader().finishingCurrentThread();
 
         Lib.assertTrue(toBeDestroyed == null);
@@ -275,11 +279,16 @@ public class KThread {
     public void join() {
         Lib.debug(dbgThread, "Joining to thread: " + toString());
         Lib.assertTrue(this != currentThread);
+        Lib.assertTrue(joinCaller == null);
 
-        // Disable Interrupt
-        // lagger = currentThread
-        // KThread.sleep()
-        // Enable Interrupt
+        boolean intStatus = Machine.interrupt().disable();
+
+        if(status != statusFinished) { // If this thread is already finished, we don't need to wait
+            joinCaller = currentThread;
+            KThread.sleep();
+        }
+
+        Machine.interrupt().restore(intStatus);
     }
 
     /**
@@ -436,6 +445,11 @@ public class KThread {
     private String name = "(unnamed thread)";
     private Runnable target;
     private TCB tcb;
+
+    /**
+     * The thread that called join on this thread
+     */
+    private KThread joinCaller;
 
     /**
      * Unique identifer for this thread. Used to deterministically compare
