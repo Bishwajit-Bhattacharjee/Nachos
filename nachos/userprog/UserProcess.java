@@ -27,6 +27,10 @@ public class UserProcess {
         pageTable = new TranslationEntry[numPhysPages];
         for (int i = 0; i < numPhysPages; i++)
             pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+
+        // stdin stdout new
+        stdin = UserKernel.console.openForReading();
+        stdout = UserKernel.console.openForWriting();
     }
 
     /**
@@ -299,6 +303,7 @@ public class UserProcess {
 
                 // for now, just assume virtual addresses=physical addresses
                 section.loadPage(i, vpn);
+                // vpn -> ppn , pageTable[vpn] = ppn
             }
         }
 
@@ -344,7 +349,29 @@ public class UserProcess {
         Lib.assertNotReached("Machine.halt() did not halt machine!");
         return 0;
     }
+    private int handleRead(int fd, int buffAddress, int count) {
+        if (fd != 0) {
+            return -1;
+        }
+        byte[] data = new byte[count];
+        int successfulRead = stdin.read(data, 0, count);
+        writeVirtualMemory(buffAddress, data, 0, successfulRead);
+        return successfulRead;
+    }
 
+    private int handleWrite (int fd, int buffAddress, int count) {
+        // check if buffAddress is a valid virtual address
+
+        if (fd != 1) {
+            return -1;
+        }
+        byte[] data = new byte[count];
+
+        int len = readVirtualMemory(buffAddress, data, 0, count);
+
+        stdout.write(data, 0, len);
+        return 0;
+    }
 
     private static final int
             syscallHalt = 0,
@@ -391,6 +418,11 @@ public class UserProcess {
             case syscallHalt:
                 return handleHalt();
 
+            case syscallWrite:
+                return handleWrite(a0, a1, a2);
+
+            case syscallRead:
+                return handleRead(a0, a1, a2);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -428,6 +460,10 @@ public class UserProcess {
                 Lib.assertNotReached("Unexpected exception");
         }
     }
+
+    private OpenFile stdin = null;
+
+    private OpenFile stdout = null;
 
     /**
      * The program being run by this process.
