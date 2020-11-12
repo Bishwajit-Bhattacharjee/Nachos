@@ -451,6 +451,10 @@ public class KThread {
      */
     private KThread joinCaller;
 
+    public int getStatus() {
+        return status;
+    }
+
     /**
      * Unique identifer for this thread. Used to deterministically compare
      * threads.

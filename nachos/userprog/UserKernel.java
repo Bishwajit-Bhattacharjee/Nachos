@@ -43,19 +43,19 @@ public class UserKernel extends ThreadedKernel {
      */
     public void selfTest() {
         super.selfTest();
-
-        System.out.println("Testing the console device. Typed characters");
-        System.out.println("will be echoed until q is typed.");
-
-        char c;
-
-        do {
-            c = (char) console.readByte(true);
-            console.writeByte(c);
-        }
-        while (c != 'q');
-
-        System.out.println("");
+//
+//        System.out.println("Testing the console device. Typed characters");
+//        System.out.println("will be echoed until q is typed.");
+//
+//        char c;
+//
+//        do {
+//            c = (char) console.readByte(true);
+//            console.writeByte(c);
+//        }
+//        while (c != 'q');
+//
+//        System.out.println("");
     }
 
     /**
@@ -106,6 +106,7 @@ public class UserKernel extends ThreadedKernel {
         String shellProgram = Machine.getShellProgramName();
         Lib.assertTrue(process.execute(shellProgram, new String[]{}));
 
+        System.out.println("UserKernel e asche.");
         KThread.currentThread().finish();
     }
 
@@ -117,6 +118,8 @@ public class UserKernel extends ThreadedKernel {
     }
 
     public static LinkedList<Integer> freePagePool;
+
+    public static int totalCreatedProcesses = 0;
     /**
      * Globally accessible reference to the synchronized console.
      */

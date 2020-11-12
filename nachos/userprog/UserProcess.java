@@ -6,6 +6,7 @@ import nachos.userprog.*;
 
 import javax.crypto.Mac;
 import java.io.EOFException;
+import java.util.ArrayList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -24,17 +25,17 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-        /*
-         * We are changing to it to accommodate multiprogramming.
-         */
-//        int numPhysPages = Machine.processor().getNumPhysPages();
-//        pageTable = new TranslationEntry[numPhysPages];
-//        for (int i = 0; i < numPhysPages; i++)
-//            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
-//
-        // stdin stdout new
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        this.processID = ++UserKernel.totalCreatedProcesses;
+
+        Machine.interrupt().restore(intStatus);
+
+        childProcesses = new ArrayList<>();
         stdin = UserKernel.console.openForReading();
         stdout = UserKernel.console.openForWriting();
+        isFinished = false;
     }
 
     /**
@@ -59,6 +60,9 @@ public class UserProcess {
     public boolean execute(String name, String[] args) {
         if (!load(name, args))
             return false;
+
+        parentKThread = KThread.currentThread();
+        aliveProcesses++;
 
         new UThread(this).setName(name).fork();
 
@@ -230,16 +234,6 @@ public class UserProcess {
         }
 
         return wroteSoFar;
-//        byte[] memory = Machine.processor().getMemory();
-//
-//        // for now, just assume that virtual addresses equal physical addresses
-//        if (vaddr < 0 || vaddr >= memory.length)
-//            return 0;
-//
-//        int amount = Math.min(length, memory.length - vaddr);
-//        System.arraycopy(data, offset, memory, vaddr, amount);
-//
-//        return amount;
     }
 
     /**
@@ -448,6 +442,107 @@ public class UserProcess {
         return 0;
     }
 
+    private int handleExec (int fileNameVaddr, int argc, int argvVaddr) {
+
+        String processName = readVirtualMemoryString(fileNameVaddr, 256);
+
+        if (processName == null || !processName.endsWith(".coff")) {
+            return -1;
+        }
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        UserProcess child = newUserProcess();
+        int childID = -1;
+
+        if (child.execute(processName, new String[]{})) {
+            childProcesses.add(child);
+            childID = child.processID;
+            child.parent = this;
+        }
+
+        Machine.interrupt().restore(intStatus);
+
+        return childID;
+    }
+
+    private int handleJoin (int childProcessID, int statusPointer) {
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        UserProcess childProcess = null;
+        for (UserProcess child : childProcesses) {
+            if (child.processID == childProcessID)
+                childProcess = child;
+        }
+        if (childProcess == null) {
+            return -1;
+        }
+
+        if (!childProcess.isFinished) {
+            childProcess.joined = true;
+            KThread.sleep();
+        }
+
+        Lib.assertTrue(childProcess.isFinished, "Joined process is not finished");
+
+        writeVirtualMemory(statusPointer, Lib.bytesFromInt(childProcess.exitStatus));
+
+        childProcesses.remove(childProcess); // disown this child
+
+        Machine.interrupt().restore(intStatus);
+
+        if (childProcess.normallyExited)
+            return 1;
+        else
+            return 0;
+    }
+
+
+    private void handleExit (int status) {
+        killProcess(status, true);
+    }
+
+    private void killProcess (int status, boolean normallyExited) {
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        for (UserProcess child :  this.childProcesses) {
+            child.parent = null;
+        }
+
+        isFinished = true;
+
+        for (TranslationEntry entry : pageTable) {
+
+            Lib.assertTrue(! UserKernel.freePagePool.contains(entry.ppn),
+                    "Page Allocated multiple time");
+
+            UserKernel.freePagePool.add( entry.ppn );
+        }
+
+        exitStatus = status;
+        this.normallyExited = normallyExited;
+
+        stdin.close();
+        stdout.close();
+
+        if (joined) {
+            parentKThread.ready();
+        }
+
+        Lib.debug(dbgProcess, "Are you here?\n");
+
+        aliveProcesses--;
+        Lib.assertTrue(aliveProcesses >= 0,
+                "Alive count is wrong!");
+
+        if (aliveProcesses == 0)
+            Kernel.kernel.terminate();
+
+        KThread.finish();
+    }
+
     private static final int
             syscallHalt = 0,
             syscallExit = 1,
@@ -499,8 +594,20 @@ public class UserProcess {
             case syscallRead:
                 return handleRead(a0, a1, a2);
 
+            case syscallExit:
+                handleExit(a0);
+
+            case syscallExec:
+                return handleExec(a0, a1, a2);
+
+            case syscallJoin:
+                return handleJoin(a0, a1);
+
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+
+                killProcess(1, false); // kernel is killing it
+
                 Lib.assertNotReached("Unknown system call!");
         }
         return 0;
@@ -532,6 +639,9 @@ public class UserProcess {
             default:
                 Lib.debug(dbgProcess, "Unexpected exception: " +
                         Processor.exceptionNames[cause]);
+
+                killProcess(2, false);
+
                 Lib.assertNotReached("Unexpected exception");
         }
     }
@@ -561,6 +671,17 @@ public class UserProcess {
 
     private int initialPC, initialSP;
     private int argc, argv;
+
+    private int processID;
+    private UserProcess parent;
+    private ArrayList<UserProcess> childProcesses;
+    private boolean isFinished;
+    private KThread parentKThread;
+    private boolean joined = false;
+    private int exitStatus;
+    private boolean normallyExited;
+
+    private static int aliveProcesses = 0;
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
