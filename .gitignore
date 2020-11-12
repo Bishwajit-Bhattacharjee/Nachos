@@ -3,4 +3,4 @@
 *.class
 *.sh
 *.coff
-*.c
+*.o
