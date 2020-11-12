@@ -4,6 +4,8 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 
+import java.util.LinkedList;
+
 /**
  * A kernel that can support multiple user processes.
  */
@@ -23,6 +25,11 @@ public class UserKernel extends ThreadedKernel {
         super.initialize(args);
 
         console = new SynchConsole(Machine.console());
+        freePagePool = new LinkedList<>();
+
+        for (int ppn = 0; ppn < Machine.processor().getNumPhysPages(); ppn++) {
+            freePagePool.add(ppn);
+        }
 
         Machine.processor().setExceptionHandler(new Runnable() {
             public void run() {
@@ -109,6 +116,7 @@ public class UserKernel extends ThreadedKernel {
         super.terminate();
     }
 
+    public static LinkedList<Integer> freePagePool;
     /**
      * Globally accessible reference to the synchronized console.
      */

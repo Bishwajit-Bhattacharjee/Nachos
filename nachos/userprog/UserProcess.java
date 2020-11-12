@@ -4,6 +4,7 @@ import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
 
+import javax.crypto.Mac;
 import java.io.EOFException;
 
 /**
@@ -23,11 +24,14 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-        int numPhysPages = Machine.processor().getNumPhysPages();
-        pageTable = new TranslationEntry[numPhysPages];
-        for (int i = 0; i < numPhysPages; i++)
-            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
-
+        /*
+         * We are changing to it to accommodate multiprogramming.
+         */
+//        int numPhysPages = Machine.processor().getNumPhysPages();
+//        pageTable = new TranslationEntry[numPhysPages];
+//        for (int i = 0; i < numPhysPages; i++)
+//            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
+//
         // stdin stdout new
         stdin = UserKernel.console.openForReading();
         stdout = UserKernel.console.openForWriting();
@@ -137,14 +141,33 @@ public class UserProcess {
 
         byte[] memory = Machine.processor().getMemory();
 
-        // for now, just assume that virtual addresses equal physical addresses
-        if (vaddr < 0 || vaddr >= memory.length)
-            return 0;
+        int readSoFar = 0;
+        int endingVaddr = vaddr + length - 1;
 
-        int amount = Math.min(length, memory.length - vaddr);
-        System.arraycopy(memory, vaddr, data, offset, amount);
+        while (vaddr <= endingVaddr) {
+            int vpn = Processor.pageFromAddress(vaddr);
 
-        return amount;
+            if (vpn >= pageTable.length || pageTable[vpn] == null
+                    || !pageTable[vpn].valid ) {
+                return readSoFar;
+            }
+
+            int startingOffset = vaddr - Processor.makeAddress(vpn, 0);
+            int curPageEndingAddress = Math.min(endingVaddr,
+                    Processor.makeAddress(vpn, pageSize - 1));
+            int amount = curPageEndingAddress - vaddr + 1;
+
+            int ppn = pageTable[vpn].ppn;
+            int startingMemoryAddress = Processor.makeAddress(ppn, startingOffset);
+
+            System.arraycopy(memory, startingMemoryAddress, data, offset, amount);
+
+            vaddr += amount;
+            offset += amount;
+            readSoFar += amount;
+        }
+
+        return readSoFar;
     }
 
     /**
@@ -180,14 +203,43 @@ public class UserProcess {
 
         byte[] memory = Machine.processor().getMemory();
 
-        // for now, just assume that virtual addresses equal physical addresses
-        if (vaddr < 0 || vaddr >= memory.length)
-            return 0;
+        int wroteSoFar = 0;
+        int endingVaddr = vaddr + length - 1;
 
-        int amount = Math.min(length, memory.length - vaddr);
-        System.arraycopy(data, offset, memory, vaddr, amount);
+        while (vaddr <= endingVaddr) {
+            int vpn = Processor.pageFromAddress(vaddr);
 
-        return amount;
+            if (vpn >= pageTable.length || pageTable[vpn] == null
+                    || !pageTable[vpn].valid ) {
+                return wroteSoFar;
+            }
+
+            int startingOffset = vaddr - Processor.makeAddress(vpn, 0);
+            int curPageEndingAddress = Math.min(endingVaddr,
+                    Processor.makeAddress(vpn, pageSize - 1));
+            int amount = curPageEndingAddress - vaddr + 1;
+
+            int ppn = pageTable[vpn].ppn;
+            int startingMemoryAddress = Processor.makeAddress(ppn, startingOffset);
+
+            System.arraycopy(data, offset, memory, startingMemoryAddress, amount);
+
+            vaddr += amount;
+            offset += amount;
+            wroteSoFar += amount;
+        }
+
+        return wroteSoFar;
+//        byte[] memory = Machine.processor().getMemory();
+//
+//        // for now, just assume that virtual addresses equal physical addresses
+//        if (vaddr < 0 || vaddr >= memory.length)
+//            return 0;
+//
+//        int amount = Math.min(length, memory.length - vaddr);
+//        System.arraycopy(data, offset, memory, vaddr, amount);
+//
+//        return amount;
     }
 
     /**
@@ -285,10 +337,31 @@ public class UserProcess {
      * @return    <tt>true</tt> if the sections were successfully loaded.
      */
     protected boolean loadSections() {
-        if (numPages > Machine.processor().getNumPhysPages()) {
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        if (numPages > UserKernel.freePagePool.size()) {
             coff.close();
             Lib.debug(dbgProcess, "\tinsufficient physical memory");
+
+            Machine.interrupt().restore(intStatus);
+
             return false;
+        }
+
+        pageTable = new TranslationEntry[numPages];
+
+        for (int vpn = 0; vpn < numPages; vpn++) {
+
+            Lib.assertTrue(UserKernel.freePagePool.size() > 0, "Empty freePagePool");
+
+            int ppn = UserKernel.freePagePool.poll();
+
+            Lib.debug(dbgProcess, "ppn " + ppn + ": vpn " + vpn);
+            Lib.assertTrue(ppn >= 0 && ppn < Machine.processor().getNumPhysPages(),
+                    "Invalid ppn!");
+
+            pageTable[vpn] = new TranslationEntry(vpn,ppn, true , false , false, false);
         }
 
         // load sections
@@ -301,11 +374,13 @@ public class UserProcess {
             for (int i = 0; i < section.getLength(); i++) {
                 int vpn = section.getFirstVPN() + i;
 
-                // for now, just assume virtual addresses=physical addresses
-                section.loadPage(i, vpn);
-                // vpn -> ppn , pageTable[vpn] = ppn
+                pageTable[vpn].readOnly = section.isReadOnly();
+
+                section.loadPage(i, pageTable[vpn].ppn);
             }
         }
+
+        Machine.interrupt().restore(intStatus);
 
         return true;
     }
@@ -359,9 +434,9 @@ public class UserProcess {
         return successfulRead;
     }
 
-    private int handleWrite (int fd, int buffAddress, int count) {
+    private int handleWrite(int fd, int buffAddress, int count) {
         // check if buffAddress is a valid virtual address
-
+        // bound checkding
         if (fd != 1) {
             return -1;
         }
