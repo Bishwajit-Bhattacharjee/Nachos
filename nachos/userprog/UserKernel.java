@@ -117,6 +117,8 @@ public class UserKernel extends ThreadedKernel {
     }
 
     public static LinkedList<Integer> freePagePool;
+
+    public static int totalCreatedProcesses = 0;
     /**
      * Globally accessible reference to the synchronized console.
      */

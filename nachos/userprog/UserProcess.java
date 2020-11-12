@@ -6,6 +6,7 @@ import nachos.userprog.*;
 
 import javax.crypto.Mac;
 import java.io.EOFException;
+import java.util.ArrayList;
 
 /**
  * Encapsulates the state of a user process that is not contained in its
@@ -24,17 +25,17 @@ public class UserProcess {
      * Allocate a new process.
      */
     public UserProcess() {
-        /*
-         * We are changing to it to accommodate multiprogramming.
-         */
-//        int numPhysPages = Machine.processor().getNumPhysPages();
-//        pageTable = new TranslationEntry[numPhysPages];
-//        for (int i = 0; i < numPhysPages; i++)
-//            pageTable[i] = new TranslationEntry(i, i, true, false, false, false);
-//
-        // stdin stdout new
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        this.processID = ++UserKernel.totalCreatedProcesses;
+
+        Machine.interrupt().restore(intStatus);
+
+        childProcesses = new ArrayList<>();
         stdin = UserKernel.console.openForReading();
         stdout = UserKernel.console.openForWriting();
+        isFinished = false;
     }
 
     /**
@@ -230,16 +231,6 @@ public class UserProcess {
         }
 
         return wroteSoFar;
-//        byte[] memory = Machine.processor().getMemory();
-//
-//        // for now, just assume that virtual addresses equal physical addresses
-//        if (vaddr < 0 || vaddr >= memory.length)
-//            return 0;
-//
-//        int amount = Math.min(length, memory.length - vaddr);
-//        System.arraycopy(data, offset, memory, vaddr, amount);
-//
-//        return amount;
     }
 
     /**
@@ -448,6 +439,48 @@ public class UserProcess {
         return 0;
     }
 
+    private int handleExec (int fileNameVaddr, int argc, int argvVaddr) {
+
+        String processName = readVirtualMemoryString(fileNameVaddr, 100);
+
+        if (processName == null || !processName.endsWith(".coff")) {
+            return -1;
+        }
+
+        boolean intStatus = Machine.interrupt().disable();
+
+        UserProcess child = newUserProcess();
+        int childID = -1;
+
+        if (child.execute(processName, new String[]{})) {
+            childProcesses.add(child);
+            childID = child.processID;
+            child.parent = this;
+        }
+
+        Machine.interrupt().restore(intStatus);
+
+        return childID;
+    }
+
+    private int handleJoin (int childProcessID, int statusPointer) {
+
+    }
+
+
+    private int handleExit (int status) {
+
+        Machine.interrupt().disable();
+
+        for (UserProcess child :  this.childProcesses) {
+            child.parent = null;
+        }
+
+        isFinished = true;
+
+
+    }
+
     private static final int
             syscallHalt = 0,
             syscallExit = 1,
@@ -498,6 +531,15 @@ public class UserProcess {
 
             case syscallRead:
                 return handleRead(a0, a1, a2);
+
+            case syscallExit:
+                return handleExit(a0);
+
+            case syscallExec:
+                return handleExec(a0, a1, a2, a3);
+
+            case syscallJoin:
+                return handleJoin(a0, a1, a2);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
@@ -561,6 +603,11 @@ public class UserProcess {
 
     private int initialPC, initialSP;
     private int argc, argv;
+
+    private int processID;
+    private UserProcess parent;
+    private ArrayList<UserProcess> childProcesses;
+    private boolean isFinished;
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
