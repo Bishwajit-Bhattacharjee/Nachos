@@ -61,6 +61,9 @@ public class UserProcess {
         if (!load(name, args))
             return false;
 
+        parentKThread = KThread.currentThread();
+        aliveProcesses++;
+
         new UThread(this).setName(name).fork();
 
         return true;
@@ -441,7 +444,7 @@ public class UserProcess {
 
     private int handleExec (int fileNameVaddr, int argc, int argvVaddr) {
 
-        String processName = readVirtualMemoryString(fileNameVaddr, 100);
+        String processName = readVirtualMemoryString(fileNameVaddr, 256);
 
         if (processName == null || !processName.endsWith(".coff")) {
             return -1;
@@ -465,12 +468,44 @@ public class UserProcess {
 
     private int handleJoin (int childProcessID, int statusPointer) {
 
+        boolean intStatus = Machine.interrupt().disable();
+
+        UserProcess childProcess = null;
+        for (UserProcess child : childProcesses) {
+            if (child.processID == childProcessID)
+                childProcess = child;
+        }
+        if (childProcess == null) {
+            return -1;
+        }
+
+        if (!childProcess.isFinished) {
+            childProcess.joined = true;
+            KThread.sleep();
+        }
+
+        Lib.assertTrue(childProcess.isFinished, "Joined process is not finished");
+
+        writeVirtualMemory(statusPointer, Lib.bytesFromInt(childProcess.exitStatus));
+
+        childProcesses.remove(childProcess); // disown this child
+
+        Machine.interrupt().restore(intStatus);
+
+        if (childProcess.normallyExited)
+            return 1;
+        else
+            return 0;
     }
 
 
-    private int handleExit (int status) {
+    private void handleExit (int status) {
+        killProcess(status, true);
+    }
 
-        Machine.interrupt().disable();
+    private void killProcess (int status, boolean normallyExited) {
+
+        boolean intStatus = Machine.interrupt().disable();
 
         for (UserProcess child :  this.childProcesses) {
             child.parent = null;
@@ -478,7 +513,34 @@ public class UserProcess {
 
         isFinished = true;
 
+        for (TranslationEntry entry : pageTable) {
 
+            Lib.assertTrue(! UserKernel.freePagePool.contains(entry.ppn),
+                    "Page Allocated multiple time");
+
+            UserKernel.freePagePool.add( entry.ppn );
+        }
+
+        exitStatus = status;
+        this.normallyExited = normallyExited;
+
+        stdin.close();
+        stdout.close();
+
+        if (joined) {
+            parentKThread.ready();
+        }
+
+        Lib.debug(dbgProcess, "Are you here?\n");
+
+        aliveProcesses--;
+        Lib.assertTrue(aliveProcesses >= 0,
+                "Alive count is wrong!");
+
+        if (aliveProcesses == 0)
+            Kernel.kernel.terminate();
+
+        KThread.finish();
     }
 
     private static final int
@@ -533,16 +595,19 @@ public class UserProcess {
                 return handleRead(a0, a1, a2);
 
             case syscallExit:
-                return handleExit(a0);
+                handleExit(a0);
 
             case syscallExec:
-                return handleExec(a0, a1, a2, a3);
+                return handleExec(a0, a1, a2);
 
             case syscallJoin:
-                return handleJoin(a0, a1, a2);
+                return handleJoin(a0, a1);
 
             default:
                 Lib.debug(dbgProcess, "Unknown syscall " + syscall);
+
+                killProcess(1, false); // kernel is killing it
+
                 Lib.assertNotReached("Unknown system call!");
         }
         return 0;
@@ -574,6 +639,9 @@ public class UserProcess {
             default:
                 Lib.debug(dbgProcess, "Unexpected exception: " +
                         Processor.exceptionNames[cause]);
+
+                killProcess(2, false);
+
                 Lib.assertNotReached("Unexpected exception");
         }
     }
@@ -608,6 +676,12 @@ public class UserProcess {
     private UserProcess parent;
     private ArrayList<UserProcess> childProcesses;
     private boolean isFinished;
+    private KThread parentKThread;
+    private boolean joined = false;
+    private int exitStatus;
+    private boolean normallyExited;
+
+    private static int aliveProcesses = 0;
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';

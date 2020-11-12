@@ -1,49 +1,50 @@
-#include "stdio.h"
-#include "stdlib.h"
+/* halt.c
+ *	Simple program to test whether running a user program works.
+ *
+ *	Just do a "syscall" that shuts down the OS.
+ *
+ * 	NOTE: for some reason, user programs with global data structures
+ *	sometimes haven't worked in the Nachos environment.  So be careful
+ *	out there!  One option is to allocate data structures as
+ * 	automatics within a procedure, but if you do this, you have to
+ *	be careful to allocate a big enough stack to hold the automatics!
+ */
 
-int main(int argc, char** argv)
+#include "syscall.h"
+
+int main()
 {
-    int i, j, num;
 
-    char buf[30];
-
-    printf("Hello world\n");
-
-    printf("Enter a number: ");
-    readline(buf, 10);
-    num = atoi(buf);
-    for(i = 0; i < num; i++) {
-        for(j = 0; j < i; j++) {
-            printf("*");
-        }
-        printf("\n");
-    }
-    printf("\n");
-
-    printf("Enter any string: ");
-    readline(buf, 30);
-    printf("INPUT by user : %s\n", buf);
-
-//      printf("------------CHECKING INVALID READ CALLS--------------\n");
-//      num = read(3, &buf, 10);
-//      printf("Return on invalid file descriptor: %d\n", num);
-//      num = read(0, -12, 10);
-//      printf("Return on invallid vaddr: %d\n", num);
-//      num = read(0, &buf, -2);
-//      printf("Return on invallid size: %d\n", num);
-//      printf("------------END CHECKING INVALID READ CALLS--------------\n");
-//
-//      printf("\n------------CHECKING INVALID WRITE CALLS--------------\n");
-//      num = write(3, &buf, 10);
-//      printf("Return on invalid file descriptor: %d\n", num);
-//      num = write(0, -12, 10);
-//      printf("Return on invallid vaddr: %d\n", num);
-//      num = write(0, &buf, -2);
-//      printf("Return on invallid size: %d\n", num);
-//
+    printf("Hello how are you?\n");
     //halt();
 
-    //printf("Halt is not working!!\n");
+    char b[30];
+    readline(b, 30);
+    printf("You wrote : %s\n", b);
 
-    //return 0;
+    return 0;
+//    char *execArgs[256];
+//    int status1,processID, processID1, processID2, status2;
+//
+//    printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
+//    printf("mypgr forking echo.coff and joining... \n");
+//    processID = exec("triangle.coff", 1,  execArgs);
+//    int k = join(processID, &status1);
+//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+//
+//    printf("mypgr forking halt.coff and joining... \n");
+//    processID = exec("triangle.coff", 1,  execArgs);
+//    k = join(processID, &status1);
+//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+//
+//    printf("mypr forking echo.coff, halt.coff and joining... \n");
+//    processID1 =exec("triangle.coff", 2,  execArgs);
+//    int l = join(processID, &status1);
+//    //processID2 =exec("echo.coff", 3,  execArgs);
+//    //int m = join(processID, &status2);
+//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
+//    //printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
+//
+//    halt();
+//    /* not reached */
 }
