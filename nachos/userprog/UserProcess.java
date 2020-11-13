@@ -466,12 +466,24 @@ public class UserProcess {
             return -1;
         }
 
+        String argv[] = new String[argc];
+
+        for(int i = 0; i < argc; i++) {
+            byte[] startingAddrBytes = new byte[4];
+            readVirtualMemory(argvVaddr, startingAddrBytes);
+
+            int startingAddr = Lib.bytesToInt(startingAddrBytes, 0);
+            argv[i] = readVirtualMemoryString(startingAddr, 256);
+
+            argvVaddr += 4;
+        }
+
         boolean intStatus = Machine.interrupt().disable();
 
         UserProcess child = newUserProcess();
         int childID = -1;
 
-        if (child.execute(processName, new String[]{})) {
+        if (child.execute(processName, argv)) {
             childProcesses.add(child);
             childID = child.processID;
             child.parent = this;
