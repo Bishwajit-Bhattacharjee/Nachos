@@ -1,54 +1,52 @@
-/* halt.c
- *	Simple program to test whether running a user program works.
- *
- *	Just do a "syscall" that shuts down the OS.
- *
- * 	NOTE: for some reason, user programs with global data structures
- *	sometimes haven't worked in the Nachos environment.  So be careful
- *	out there!  One option is to allocate data structures as
- * 	automatics within a procedure, but if you do this, you have to
- *	be careful to allocate a big enough stack to hold the automatics!
- */
-
 #include "syscall.h"
 
 int main()
 {
+    int status1,processID, processID1, processID2, status2, i, k;
+    char *execArgs[6];
 
-    printf("Hello how are you?\n");
-    //halt();
-    char b[30];
+    for(i = 0; i < 6; i++) execArgs[i] = "";
 
-    char *execArgs[256];
-    int status1,processID, processID1, processID2, status2;
+    printf("\n\n\n********************************** Multiprogramming tests **********************************\n\n\n");
 
-     printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
-     printf("mypgr forking triangle.coff and joining... \n");
-     processID = exec("my_echo.coff", 1,  execArgs);
-     int k = join(processID, &status1);
 
-     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+    printf("\n\n********************************** Read-write test **********************************\n\n");
 
-     k = join(processID, &status1);
+    printf("my_test forking echo.coff and joining... \n");
+    processID = exec("echo.coff", 1,  execArgs);
+    k = join(processID, &status1);
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
 
-     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, k);
+    printf("\n\n********************************** Join test **********************************\n\n");
+
+    printf("my_test forking my_join and joining... \n");
+    processID = exec("my_join.coff", 3,  execArgs);
+    k = join(processID, &status1);
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
+    printf("\nDoing this to see that page freeing works\n\n");
+
+    printf("my_test forking my_join and joining... \n");
+    processID = exec("my_join.coff", 2,  execArgs);
+    k = join(processID, &status1);
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
+//    printf("\n\n********************************** Multiple process running concurrently test **********************************\n\n");
 //
-//     printf("mypgr forking halt.coff and joining... \n");
-//     processID = exec("halt.coff", 1,  execArgs);
-//     k = join(processID, &status1);
-//     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+//    printf("my_test forking my_print.coff and joining... \n");
+//    processID = exec("my_print.coff", 1,  execArgs);
+//    k = join(processID, &status1);
+//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
 //
-//    printf("mypgr forking triangle.coff, halt.coff and joining... \n");
-//    processID1 =exec("halt.coff", 1,  execArgs);
+//    printf("\n\n********************************** Exit status test **********************************\n\n");
 //
-//    int l = join(processID1, &status1);
-//    processID2 =exec("triangle.coff", 1,  execArgs);
-//
-//    int m = join(processID2, &status2);
-//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
-//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
-//
+//    printf("my_test forking my_exit and joining... \n");
+//    processID = exec("my_exit.coff", 1,  execArgs);
+//    k = join(processID, &status1);
+//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
     halt();
     printf("Should not reach!!!");
+
     /* not reached */
 }
