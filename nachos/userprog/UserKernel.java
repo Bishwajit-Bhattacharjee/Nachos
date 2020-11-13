@@ -125,6 +125,7 @@ public class UserKernel extends ThreadedKernel {
      */
     public static SynchConsole console;
 
+
     // dummy variables to make javac smarter
     private static Coff dummy1 = null;
 }
