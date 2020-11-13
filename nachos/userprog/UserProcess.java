@@ -30,6 +30,9 @@ public class UserProcess {
 
         this.processID = ++UserKernel.totalCreatedProcesses;
 
+        if (rootProcess == null)
+            rootProcess = this;
+
         Machine.interrupt().restore(intStatus);
 
         childProcesses = new ArrayList<>();
@@ -414,8 +417,10 @@ public class UserProcess {
      */
     private int handleHalt() {
 
-        Machine.halt();
+        if (rootProcess != this)
+            return 1;
 
+        Machine.halt();
         Lib.assertNotReached("Machine.halt() did not halt machine!");
         return 0;
     }
@@ -695,6 +700,8 @@ public class UserProcess {
     private boolean normallyExited;
 
     private static int aliveProcesses = 0;
+
+    private static UserProcess rootProcess;
 
     private static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
