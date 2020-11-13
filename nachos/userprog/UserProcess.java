@@ -152,21 +152,20 @@ public class UserProcess {
         int endingVaddr = vaddr + length - 1;
 
         while (vaddr <= endingVaddr) {
-            int vpn = Processor.pageFromAddress(vaddr);
+
+            int vpn = pageFromAddress(vaddr);
 
             if (vpn >= pageTable.length || pageTable[vpn] == null
                     || !pageTable[vpn].valid ) {
                 return readSoFar;
             }
 
-            int startingOffset = vaddr - Processor.makeAddress(vpn, 0);
+            int startingOffset = offsetFromAddress(vaddr);
             int curPageEndingAddress = Math.min(endingVaddr,
-                    Processor.makeAddress(vpn, pageSize - 1));
+                    makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-
             int ppn = pageTable[vpn].ppn;
-            int startingMemoryAddress = Processor.makeAddress(ppn, startingOffset);
-
+            int startingMemoryAddress = makeAddress(ppn, startingOffset);
             System.arraycopy(memory, startingMemoryAddress, data, offset, amount);
 
             vaddr += amount;
@@ -214,20 +213,19 @@ public class UserProcess {
         int endingVaddr = vaddr + length - 1;
 
         while (vaddr <= endingVaddr) {
-            int vpn = Processor.pageFromAddress(vaddr);
+            int vpn = pageFromAddress(vaddr);
 
             if (vpn >= pageTable.length || pageTable[vpn] == null
                     || !pageTable[vpn].valid ) {
                 return wroteSoFar;
             }
 
-            int startingOffset = vaddr - Processor.makeAddress(vpn, 0);
+            int startingOffset = offsetFromAddress(vaddr);
             int curPageEndingAddress = Math.min(endingVaddr,
-                    Processor.makeAddress(vpn, pageSize - 1));
+                    makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-
             int ppn = pageTable[vpn].ppn;
-            int startingMemoryAddress = Processor.makeAddress(ppn, startingOffset);
+            int startingMemoryAddress = makeAddress(ppn, startingOffset);
 
             System.arraycopy(data, offset, memory, startingMemoryAddress, amount);
 
@@ -237,6 +235,20 @@ public class UserProcess {
         }
 
         return wroteSoFar;
+    }
+
+    public static int pageFromAddress(int address) {
+        return (int) (((long) address & 0xFFFFFFFFL) / pageSize);
+    }
+
+    public static int offsetFromAddress(int address) {
+        return (int) (((long) address & 0xFFFFFFFFL) % pageSize);
+    }
+
+    public static int makeAddress(int page, int offset) {
+
+        Lib.assertTrue(offset >= 0 && offset < pageSize);
+        return (page * pageSize) | offset;
     }
 
     /**
@@ -387,6 +399,14 @@ public class UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
+
+        for (TranslationEntry entry : pageTable) {
+
+            Lib.assertTrue(! UserKernel.freePagePool.contains(entry.ppn),
+                    "Page Allocated multiple time");
+
+            UserKernel.freePagePool.add(entry.ppn);
+        }
     }
 
     /**
@@ -419,6 +439,7 @@ public class UserProcess {
 
         if (rootProcess != this)
             return 1;
+
 
         Machine.halt();
         Lib.assertNotReached("Machine.halt() did not halt machine!");
@@ -544,19 +565,14 @@ public class UserProcess {
         Lib.debug(dbgProcess, "Before killing process " + processID
                 + " pagePool had " + UserKernel.freePagePool.size() + " pages\n");
 
-        for (TranslationEntry entry : pageTable) {
-
-            Lib.assertTrue(! UserKernel.freePagePool.contains(entry.ppn),
-                    "Page Allocated multiple time");
-
-            UserKernel.freePagePool.add( entry.ppn );
-        }
 
         exitStatus = status;
         this.normallyExited = normallyExited;
 
         stdin.close();
         stdout.close();
+
+        unloadSections();
 
         if (joined) {
             parentKThread.ready();

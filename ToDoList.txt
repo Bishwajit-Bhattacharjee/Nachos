@@ -1,4 +1,16 @@
 -1. Write test on proj1
 0. Report
 1. Write on read-only memory should return -1
-2. Add cmd line arguments
+
+Testing idea on proj2:
+1. join of multiple hierrarchy
+2. for loop 10^5 exec and join
+3. ram overload ( 5 + process at a time)
+4. read write sir's code
+5. various exit status and corresponding sanity check
+
+
+Testing idea on Proj1:
+1. join, A -> B -> C -> D , D is on a long sleep
+2. speaker listener ( 4 ta speaker, 3 ta listen, long sleep, 1 ta listener)
+3. waitUntil (0 time, long time)
