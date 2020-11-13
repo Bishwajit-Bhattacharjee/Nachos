@@ -1,5 +1,7 @@
 package nachos.threads;
 
+import nachos.machine.Machine;
+
 /**
  * A <i>communicator</i> allows threads to synchronously exchange 32-bit
  * messages. Multiple threads can be waiting to <i>speak</i>,
@@ -75,7 +77,8 @@ public class Communicator {
         while(!wantToListen) wantToListenCond.sleep();
 
         message = word;
-        System.out.println(KThread.currentThread().getName()+" spoke "+word);
+        System.out.println(KThread.currentThread().getName()+ " spoke "
+                + word + " at time " + Machine.timer().getTime());
 
         hasMessage = false;
 
@@ -114,7 +117,8 @@ public class Communicator {
         while(!hasSpoken) hasSpokenCond.sleep();
 
         int retVal = message;
-        System.out.println(KThread.currentThread().getName()+" listened "+message);
+        System.out.println(KThread.currentThread().getName() + " listened "
+                + message + " at time " + Machine.timer().getTime());
 
         wantToListen = false;
 
