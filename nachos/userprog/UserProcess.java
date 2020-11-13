@@ -343,6 +343,8 @@ public class UserProcess {
             return false;
         }
 
+        Lib.debug(dbgProcess, "Process ID " + processID + " needs " + numPages + " pages\n");
+
         pageTable = new TranslationEntry[numPages];
 
         for (int vpn = 0; vpn < numPages; vpn++) {
@@ -351,7 +353,6 @@ public class UserProcess {
 
             int ppn = UserKernel.freePagePool.poll();
 
-            Lib.debug(dbgProcess, "ppn " + ppn + ": vpn " + vpn);
             Lib.assertTrue(ppn >= 0 && ppn < Machine.processor().getNumPhysPages(),
                     "Invalid ppn!");
 
@@ -513,6 +514,9 @@ public class UserProcess {
 
         isFinished = true;
 
+        Lib.debug(dbgProcess, "Before killing process " + processID
+                + " pagePool had " + UserKernel.freePagePool.size() + " pages\n");
+
         for (TranslationEntry entry : pageTable) {
 
             Lib.assertTrue(! UserKernel.freePagePool.contains(entry.ppn),
@@ -531,11 +535,20 @@ public class UserProcess {
             parentKThread.ready();
         }
 
-        Lib.debug(dbgProcess, "Are you here?\n");
+        //Lib.debug(dbgProcess, "Are you here?\n");
 
         aliveProcesses--;
         Lib.assertTrue(aliveProcesses >= 0,
                 "Alive count is wrong!");
+
+
+        Lib.debug(dbgProcess, "Process ID " + processID + " had " + numPages + " pages\n");
+        Lib.debug(dbgProcess, processID + " th process exiting with status " + status + '\n');
+
+        Lib.debug(dbgProcess, "After killing process " + processID
+                + " pagePool had " + UserKernel.freePagePool.size() + " pages\n");
+
+        Lib.debug(dbgProcess, "AliveProcesses " + aliveProcesses + "\n");
 
         if (aliveProcesses == 0)
             Kernel.kernel.terminate();
@@ -596,7 +609,7 @@ public class UserProcess {
 
             case syscallExit:
                 handleExit(a0);
-
+                break;
             case syscallExec:
                 return handleExec(a0, a1, a2);
 

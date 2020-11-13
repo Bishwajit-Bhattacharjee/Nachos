@@ -21,16 +21,16 @@ int main()
     char b[30];
     readline(b, 30);
     printf("You wrote : %s\n", b);
+    char *execArgs[256];
+    int status1,processID, processID1, processID2, status2;
 
-    return 0;
-//    char *execArgs[256];
-//    int status1,processID, processID1, processID2, status2;
-//
-//    printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
-//    printf("mypgr forking echo.coff and joining... \n");
-//    processID = exec("triangle.coff", 1,  execArgs);
-//    int k = join(processID, &status1);
-//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+    printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
+    printf("mypgr forking echo.coff and joining... \n");
+    processID = exec("triangle.coff", 1,  execArgs);
+    int k = join(processID, &status1);
+
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
 //
 //    printf("mypgr forking halt.coff and joining... \n");
 //    processID = exec("triangle.coff", 1,  execArgs);
