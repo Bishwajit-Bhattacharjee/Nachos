@@ -17,36 +17,37 @@ int main()
 
     printf("Hello how are you?\n");
     //halt();
-
     char b[30];
-    readline(b, 30);
-    printf("You wrote : %s\n", b);
+
     char *execArgs[256];
     int status1,processID, processID1, processID2, status2;
 
      printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
      printf("mypgr forking triangle.coff and joining... \n");
-     processID = exec("triangle.coff", 1,  execArgs);
+     processID = exec("my_echo.coff", 1,  execArgs);
      int k = join(processID, &status1);
 
      printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
 
-
-     printf("mypgr forking halt.coff and joining... \n");
-     processID = exec("halt.coff", 1,  execArgs);
      k = join(processID, &status1);
-     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
 
-    printf("mypgr forking triangle.coff, halt.coff and joining... \n");
-    processID1 =exec("halt.coff", 1,  execArgs);
-
-    int l = join(processID1, &status1);
-    processID2 =exec("triangle.coff", 1,  execArgs);
-
-    int m = join(processID2, &status2);
-    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
-    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
-
+     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, k);
+//
+//     printf("mypgr forking halt.coff and joining... \n");
+//     processID = exec("halt.coff", 1,  execArgs);
+//     k = join(processID, &status1);
+//     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+//
+//    printf("mypgr forking triangle.coff, halt.coff and joining... \n");
+//    processID1 =exec("halt.coff", 1,  execArgs);
+//
+//    int l = join(processID1, &status1);
+//    processID2 =exec("triangle.coff", 1,  execArgs);
+//
+//    int m = join(processID2, &status2);
+//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
+//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
+//
     halt();
     printf("Should not reach!!!");
     /* not reached */
