@@ -425,21 +425,31 @@ public class UserProcess {
         return 0;
     }
     private int handleRead(int fd, int buffAddress, int count) {
-        if (fd != 0) {
+        if (fd != 0)
             return -1;
-        }
+        if (buffAddress < 0 || buffAddress >= numPages * pageSize)
+            return -1;
+        if (count < 0)
+            return -1;
+
+
         byte[] data = new byte[count];
+
         int successfulRead = stdin.read(data, 0, count);
+        // check if it is read only memory
         writeVirtualMemory(buffAddress, data, 0, successfulRead);
+
         return successfulRead;
     }
 
     private int handleWrite(int fd, int buffAddress, int count) {
-        // check if buffAddress is a valid virtual address
-        // bound checkding
-        if (fd != 1) {
+        if (fd != 1)
             return -1;
-        }
+        if (buffAddress < 0 || buffAddress >= numPages * pageSize)
+            return -1;
+        if (count < 0)
+            return -1;
+
         byte[] data = new byte[count];
 
         int len = readVirtualMemory(buffAddress, data, 0, count);

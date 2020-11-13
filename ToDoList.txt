@@ -1,0 +1,4 @@
+-1. Write test on proj1
+0. Report
+1. Write on read-only memory should return -1
+2. Add cmd line arguments
