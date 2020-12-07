@@ -728,19 +728,19 @@ public class UserProcess {
     private int initialPC, initialSP;
     private int argc, argv;
 
-    private int processID;
-    private UserProcess parent;
-    private ArrayList<UserProcess> childProcesses;
-    private boolean isFinished;
-    private KThread parentKThread;
-    private boolean joined = false;
-    private int exitStatus;
-    private boolean normallyExited;
+    protected int processID;
+    protected UserProcess parent;
+    protected ArrayList<UserProcess> childProcesses;
+    protected boolean isFinished;
+    protected KThread parentKThread;
+    protected boolean joined = false;
+    protected int exitStatus;
+    protected boolean normallyExited;
 
-    private static int aliveProcesses = 0;
+    protected static int aliveProcesses = 0;
 
-    private static UserProcess rootProcess;
+    protected static UserProcess rootProcess;
 
-    private static final int pageSize = Processor.pageSize;
+    protected static final int pageSize = Processor.pageSize;
     private static final char dbgProcess = 'a';
 }
