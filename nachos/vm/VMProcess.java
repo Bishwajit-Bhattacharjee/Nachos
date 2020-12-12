@@ -46,6 +46,27 @@ public class VMProcess extends UserProcess {
         return true;
     }
 
+    protected TranslationEntry loadPageIntoMemory (int vpn, int ppn) {
+        // swap space checking
+        for (int s = 0; s < coff.getNumSections(); s++) {
+            CoffSection section = coff.getSection(s);
+
+            if (vpn < section.getFirstVPN() + section.getLength()) {
+                int pos = vpn - section.getFirstVPN();
+                section.loadPage(pos, ppn);
+                TranslationEntry entry = new TranslationEntry(
+                    vpn, ppn, true, section.isReadOnly(), false, false
+                );
+                VMKernel.invertedPageTable.put(new Pair(vpn, processID),
+                        entry);
+
+                return entry;
+            }
+        }
+        Lib.assertNotReached();
+        return null;
+    }
+
     /**
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
@@ -59,26 +80,31 @@ public class VMProcess extends UserProcess {
         bringPage(vpn);
     }
 
-    protected void replaceTLB (TranslationEntry entry) {
+    protected int findTLBIndToEvict() {
 
         for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
             TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
             Lib.assertTrue(tlbEntry != null);
 
             if (!tlbEntry.valid){
-                Machine.processor().writeTLBEntry(i, entry);
-                return;
+                return i;
             }
         }
-
-        Machine.processor().writeTLBEntry(
-                new Random().nextInt(Machine.processor().getTLBSize()), entry
-            );
-
+        return new Random().nextInt(Machine.processor().getTLBSize());
     }
 
-    protected void loadPageFromDisk (int vpn, TranslationEntry entry) {
+    protected void writeTLBBack (int tlbId) {
+        TranslationEntry entry = Machine.processor().readTLBEntry(tlbId);
 
+        if (entry.valid && entry.dirty) {
+            TranslationEntry pageTableEntry = VMKernel.
+                    invertedPageTable.get( new Pair(entry.vpn, processID));
+            Lib.assertTrue(pageTableEntry != null,
+                    "TLB has an entry, pageTable doesn't");
+
+            pageTableEntry.dirty = true;
+            pageTableEntry.used = entry.used;
+        }
     }
 
     protected void bringPage (int vpn) {
@@ -86,16 +112,24 @@ public class VMProcess extends UserProcess {
 
         VMKernel.pageTableLock.acquire();
 
+        int evictedTLBId = findTLBIndToEvict();
+        writeTLBBack(evictedTLBId);
+
         TranslationEntry alreadyFoundEntry = VMKernel.
                 invertedPageTable.get(key);
 
         if (alreadyFoundEntry != null){ // Page Table Hit
-            replaceTLB(alreadyFoundEntry);
+            Machine.processor().writeTLBEntry(evictedTLBId, alreadyFoundEntry);
         }
         else {     // Page Table miss
-
             Integer evictedPPN = VMKernel.invertedPageTable.
                     evictPhysicalPageNumber();
+
+            Lib.assertTrue(evictedPPN != -1);
+
+            TranslationEntry loadedEntry = loadPageIntoMemory(vpn, evictedPPN);
+
+            Machine.processor().writeTLBEntry(evictedTLBId, loadedEntry);
 
             // load vpn into this entry
             // insert into inverted page table

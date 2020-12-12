@@ -45,6 +45,9 @@ int main()
     k = join(processID, &status1);
     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
 
+
+    accept(10);
+
     halt();
     printf("Should not reach!!!");
 

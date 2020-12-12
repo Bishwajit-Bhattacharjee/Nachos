@@ -1,10 +1,13 @@
 package nachos.vm;
 
+import nachos.machine.Lib;
+import nachos.machine.Machine;
 import nachos.machine.TranslationEntry;
 
 import java.util.Hashtable;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Random;
 
 public class InvertedPageTable {
 
@@ -19,6 +22,9 @@ public class InvertedPageTable {
             table.put(key, entry);
         }
     }
+    public void put(Pair key, TranslationEntry value){
+        table.put(key, value);
+    }
 
     public int evictPhysicalPageNumber (){
 
@@ -29,8 +35,32 @@ public class InvertedPageTable {
                 return ppn; // found a free ppn
             }
         }
+
+        for (Map.Entry<Pair, TranslationEntry> entry : table.entrySet()) {
+
+            int tmpPPN = entry.getValue().ppn;
+            boolean hasFound = true;
+
+            for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+                TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
+                Lib.assertTrue(tlbEntry != null);
+
+                if (tlbEntry.ppn == tmpPPN) {
+                    hasFound = false;
+                    break;
+                }
+            }
+            if (hasFound) {
+                // write to swap space if dirty
+
+                table.remove(entry.getKey());
+                return tmpPPN; // found a free ppn
+            }
+        }
+
         return -1;
         // need to evict one
+        // tlb entries must not be evicted
         // write into swap space if dirty
 
     }
