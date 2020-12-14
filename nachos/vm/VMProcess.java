@@ -32,7 +32,13 @@ public class VMProcess extends UserProcess {
      * <tt>UThread.restoreState()</tt>.
      */
     public void restoreState() {
-        super.restoreState();
+
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+           TranslationEntry entry = Machine.processor().readTLBEntry(i);
+           entry.valid = false;
+           Machine.processor().writeTLBEntry(i, entry);
+        }
+        //super.restoreState();
     }
 
     /**
@@ -51,8 +57,12 @@ public class VMProcess extends UserProcess {
         for (int s = 0; s < coff.getNumSections(); s++) {
             CoffSection section = coff.getSection(s);
 
+            System.out.println("section " + s + " sectionfirstvpn " +
+                section.getFirstVPN() + " sectionlength " + section.getLength() +
+                    " vpn " + vpn);
             if (vpn < section.getFirstVPN() + section.getLength()) {
                 int pos = vpn - section.getFirstVPN();
+
                 section.loadPage(pos, ppn);
                 TranslationEntry entry = new TranslationEntry(
                     vpn, ppn, true, section.isReadOnly(), false, false
@@ -63,8 +73,13 @@ public class VMProcess extends UserProcess {
                 return entry;
             }
         }
-        Lib.assertNotReached();
-        return null;
+        TranslationEntry entry = new TranslationEntry(
+                vpn, ppn, true, false, false, false
+        );
+        VMKernel.invertedPageTable.put(new Pair(vpn, processID),
+                entry);
+
+        return entry;
     }
 
     /**
@@ -107,10 +122,8 @@ public class VMProcess extends UserProcess {
         }
     }
 
-    protected void bringPage (int vpn) {
+    protected int bringPage (int vpn) {
         Pair key = new Pair(vpn, processID);
-
-        VMKernel.pageTableLock.acquire();
 
         int evictedTLBId = findTLBIndToEvict();
         writeTLBBack(evictedTLBId);
@@ -120,6 +133,7 @@ public class VMProcess extends UserProcess {
 
         if (alreadyFoundEntry != null){ // Page Table Hit
             Machine.processor().writeTLBEntry(evictedTLBId, alreadyFoundEntry);
+            return alreadyFoundEntry.ppn;
         }
         else {     // Page Table miss
             Integer evictedPPN = VMKernel.invertedPageTable.
@@ -131,13 +145,45 @@ public class VMProcess extends UserProcess {
 
             Machine.processor().writeTLBEntry(evictedTLBId, loadedEntry);
 
-            // load vpn into this entry
-            // insert into inverted page table
-            // replaceTLB(entry)
+            return loadedEntry.ppn;
+        }
+    }
+
+    public int translateVirtualPage (int vpn){
+
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+            TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
+            Lib.assertTrue(tlbEntry != null);
+
+            if (tlbEntry.valid && tlbEntry.vpn == vpn) {
+                return tlbEntry.ppn;
+            }
         }
 
-        VMKernel.pageTableLock.release();
+        return bringPage(vpn);
     }
+
+    public boolean checkValidVPN (int vpn) {
+        return vpn >= 0 && vpn < numPages;
+    }
+
+    public void updateTLBEntry (int vpn, boolean isDirty) {
+
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+            TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
+            Lib.assertTrue(tlbEntry != null);
+
+            if (tlbEntry.valid && tlbEntry.vpn == vpn) {
+                tlbEntry.dirty = isDirty;
+                tlbEntry.used = true;
+
+                Machine.processor().writeTLBEntry(i, tlbEntry);
+                return;
+            }
+        }
+        Lib.assertNotReached();
+    }
+
     /**
      * Handle a user exception. Called by
      * <tt>UserKernel.exceptionHandler()</tt>. The
@@ -147,6 +193,7 @@ public class VMProcess extends UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
+        boolean intStatus = Machine.interrupt().disable();
         Processor processor = Machine.processor();
 
         switch (cause) {
@@ -158,6 +205,8 @@ public class VMProcess extends UserProcess {
                 super.handleException(cause);
                 break;
         }
+
+        Machine.interrupt().restore(intStatus);
     }
 
     private static final int pageSize = Processor.pageSize;

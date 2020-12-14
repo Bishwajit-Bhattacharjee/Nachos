@@ -17,9 +17,12 @@ public class VMKernel extends UserKernel {
      */
     public VMKernel() {
         super();
+        System.out.println("Hello from after super!");
         invertedPageTable = new InvertedPageTable(Machine
                 .processor().getNumPhysPages());
-        pageTableLock = new Lock();
+
+        System.out.println("Hello from after invertedPageTable!");
+        //pageTableLock = new Lock();
     }
 
     /**

@@ -142,6 +142,12 @@ public class UserProcess {
      * the array.
      * @return the number of bytes successfully transferred.
      */
+
+    public boolean checkValidVPN (int vpn) {
+        return !(vpn >= pageTable.length || pageTable[vpn] == null
+                || !pageTable[vpn].valid);
+    }
+
     public int readVirtualMemory(int vaddr, byte[] data, int offset,
                                  int length) {
         Lib.assertTrue(offset >= 0 && length >= 0 && offset + length <= data.length);
@@ -155,8 +161,7 @@ public class UserProcess {
 
             int vpn = pageFromAddress(vaddr);
 
-            if (vpn >= pageTable.length || pageTable[vpn] == null
-                    || !pageTable[vpn].valid ) {
+            if (!checkValidVPN(vpn)) {
                 return readSoFar;
             }
 
@@ -164,9 +169,11 @@ public class UserProcess {
             int curPageEndingAddress = Math.min(endingVaddr,
                     makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-            int ppn = pageTable[vpn].ppn;
+            int ppn = translateVirtualPage(vpn);
             int startingMemoryAddress = makeAddress(ppn, startingOffset);
             System.arraycopy(memory, startingMemoryAddress, data, offset, amount);
+
+            updateTLBEntry(vpn, false);
 
             vaddr += amount;
             offset += amount;
@@ -215,8 +222,7 @@ public class UserProcess {
         while (vaddr <= endingVaddr) {
             int vpn = pageFromAddress(vaddr);
 
-            if (vpn >= pageTable.length || pageTable[vpn] == null
-                    || !pageTable[vpn].valid ) {
+            if (!checkValidVPN(vpn)) {
                 return wroteSoFar;
             }
 
@@ -224,10 +230,12 @@ public class UserProcess {
             int curPageEndingAddress = Math.min(endingVaddr,
                     makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-            int ppn = pageTable[vpn].ppn;
+            int ppn = translateVirtualPage(vpn);
             int startingMemoryAddress = makeAddress(ppn, startingOffset);
 
             System.arraycopy(data, offset, memory, startingMemoryAddress, amount);
+
+            updateTLBEntry(vpn, true);
 
             vaddr += amount;
             offset += amount;
@@ -235,6 +243,13 @@ public class UserProcess {
         }
 
         return wroteSoFar;
+    }
+
+    public void updateTLBEntry (int vpn, boolean isDirty) {
+
+    }
+    public int translateVirtualPage (int vpn){
+        return pageTable[vpn].ppn;
     }
 
     public static int pageFromAddress(int address) {
@@ -499,7 +514,6 @@ public class UserProcess {
             argvVaddr += 4;
         }
 
-        boolean intStatus = Machine.interrupt().disable();
 
         UserProcess child = newUserProcess();
         int childID = -1;
@@ -510,14 +524,12 @@ public class UserProcess {
             child.parent = this;
         }
 
-        Machine.interrupt().restore(intStatus);
 
         return childID;
     }
 
     private int handleJoin (int childProcessID, int statusPointer) {
 
-        boolean intStatus = Machine.interrupt().disable();
 
         UserProcess childProcess = null;
         for (UserProcess child : childProcesses) {
@@ -539,7 +551,6 @@ public class UserProcess {
 
         childProcesses.remove(childProcess); // disown this child
 
-        Machine.interrupt().restore(intStatus);
 
         if (childProcess.normallyExited)
             return 1;
@@ -553,8 +564,6 @@ public class UserProcess {
     }
 
     private void killProcess (int status, boolean normallyExited) {
-
-        boolean intStatus = Machine.interrupt().disable();
 
         for (UserProcess child :  this.childProcesses) {
             child.parent = null;
@@ -678,6 +687,7 @@ public class UserProcess {
      * @param    cause    the user exception that occurred.
      */
     public void handleException(int cause) {
+        boolean intStatus = Machine.interrupt().disable();
         Processor processor = Machine.processor();
 
         switch (cause) {
@@ -700,6 +710,7 @@ public class UserProcess {
 
                 Lib.assertNotReached("Unexpected exception");
         }
+        Machine.interrupt().restore(intStatus);
     }
 
     private OpenFile stdin = null;
