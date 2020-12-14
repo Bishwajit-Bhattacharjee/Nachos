@@ -54,12 +54,11 @@ public class VMProcess extends UserProcess {
 
     protected TranslationEntry loadPageIntoMemory (int vpn, int ppn) {
         // swap space checking
+        System.out.println("vpn " + vpn + " is loading!");
+
         for (int s = 0; s < coff.getNumSections(); s++) {
             CoffSection section = coff.getSection(s);
 
-            System.out.println("section " + s + " sectionfirstvpn " +
-                section.getFirstVPN() + " sectionlength " + section.getLength() +
-                    " vpn " + vpn);
             if (vpn < section.getFirstVPN() + section.getLength()) {
                 int pos = vpn - section.getFirstVPN();
 
@@ -86,7 +85,8 @@ public class VMProcess extends UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-        super.unloadSections();
+        // need to invalidate invertedPageTable
+        //super.unloadSections();
     }
 
     protected void handleTLBMiss (int vaddr) {
@@ -122,7 +122,7 @@ public class VMProcess extends UserProcess {
         }
     }
 
-    protected int bringPage (int vpn) {
+    protected TranslationEntry bringPage (int vpn) {
         Pair key = new Pair(vpn, processID);
 
         int evictedTLBId = findTLBIndToEvict();
@@ -133,7 +133,7 @@ public class VMProcess extends UserProcess {
 
         if (alreadyFoundEntry != null){ // Page Table Hit
             Machine.processor().writeTLBEntry(evictedTLBId, alreadyFoundEntry);
-            return alreadyFoundEntry.ppn;
+            return alreadyFoundEntry;
         }
         else {     // Page Table miss
             Integer evictedPPN = VMKernel.invertedPageTable.
@@ -145,18 +145,18 @@ public class VMProcess extends UserProcess {
 
             Machine.processor().writeTLBEntry(evictedTLBId, loadedEntry);
 
-            return loadedEntry.ppn;
+            return loadedEntry;
         }
     }
 
-    public int translateVirtualPage (int vpn){
+    public TranslationEntry translateVirtualPage (int vpn){
 
         for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
             TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
             Lib.assertTrue(tlbEntry != null);
 
             if (tlbEntry.valid && tlbEntry.vpn == vpn) {
-                return tlbEntry.ppn;
+                return tlbEntry;
             }
         }
 
@@ -200,6 +200,7 @@ public class VMProcess extends UserProcess {
 
             case Processor.exceptionTLBMiss:
                 handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
+                System.out.println("TLB miss!");
                 break;
             default:
                 super.handleException(cause);

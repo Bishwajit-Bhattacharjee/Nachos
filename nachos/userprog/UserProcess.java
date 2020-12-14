@@ -162,14 +162,17 @@ public class UserProcess {
             int vpn = pageFromAddress(vaddr);
 
             if (!checkValidVPN(vpn)) {
-                return readSoFar;
+                return -1;
             }
 
             int startingOffset = offsetFromAddress(vaddr);
             int curPageEndingAddress = Math.min(endingVaddr,
                     makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-            int ppn = translateVirtualPage(vpn);
+
+            TranslationEntry translationEntry = translateVirtualPage(vpn);
+            int ppn = translationEntry.ppn;
+
             int startingMemoryAddress = makeAddress(ppn, startingOffset);
             System.arraycopy(memory, startingMemoryAddress, data, offset, amount);
 
@@ -223,14 +226,21 @@ public class UserProcess {
             int vpn = pageFromAddress(vaddr);
 
             if (!checkValidVPN(vpn)) {
-                return wroteSoFar;
+                return -1;
             }
 
             int startingOffset = offsetFromAddress(vaddr);
             int curPageEndingAddress = Math.min(endingVaddr,
                     makeAddress(vpn, pageSize - 1));
             int amount = curPageEndingAddress - vaddr + 1;
-            int ppn = translateVirtualPage(vpn);
+            TranslationEntry translationEntry = translateVirtualPage(vpn);
+            int ppn = translationEntry.ppn;
+
+            Lib.assertTrue(translationEntry.valid);
+            if (translationEntry.readOnly) {
+                return -1;
+            }
+
             int startingMemoryAddress = makeAddress(ppn, startingOffset);
 
             System.arraycopy(data, offset, memory, startingMemoryAddress, amount);
@@ -248,8 +258,8 @@ public class UserProcess {
     public void updateTLBEntry (int vpn, boolean isDirty) {
 
     }
-    public int translateVirtualPage (int vpn){
-        return pageTable[vpn].ppn;
+    public TranslationEntry translateVirtualPage (int vpn){
+        return pageTable[vpn];
     }
 
     public static int pageFromAddress(int address) {
@@ -473,9 +483,7 @@ public class UserProcess {
 
         int successfulRead = stdin.read(data, 0, count);
         // check if it is read only memory
-        writeVirtualMemory(buffAddress, data, 0, successfulRead);
-
-        return successfulRead;
+        return writeVirtualMemory(buffAddress, data, 0, successfulRead);
     }
 
     private int handleWrite(int fd, int buffAddress, int count) {
