@@ -2,6 +2,7 @@ package nachos.vm;
 
 import nachos.machine.Lib;
 import nachos.machine.Machine;
+import nachos.machine.Processor;
 import nachos.machine.TranslationEntry;
 
 import java.util.Hashtable;
@@ -45,7 +46,7 @@ public class InvertedPageTable {
                 TranslationEntry tlbEntry = Machine.processor().readTLBEntry(i);
                 Lib.assertTrue(tlbEntry != null);
 
-                if (tlbEntry.ppn == tmpPPN) {
+                if (tlbEntry.valid && tlbEntry.ppn == tmpPPN) {
                     hasFound = false;
                     break;
                 }
@@ -53,20 +54,54 @@ public class InvertedPageTable {
             if (hasFound) {
                 // write to swap space if dirty
 
+                TranslationEntry replacingEntry = entry.getValue();
+
+                if (replacingEntry.dirty) {
+                    writeBackToSwap(replacingEntry);
+                }
+
                 table.remove(entry.getKey());
                 return tmpPPN; // found a free ppn
             }
         }
-
+        Lib.assertNotReached();
         return -1;
-        // need to evict one
-        // tlb entries must not be evicted
-        // write into swap space if dirty
 
     }
 
+    public void writeBackToSwap (TranslationEntry entry) {
+        int curProcessID = VMKernel.currentProcess().getProcessID();
+
+        Integer swapFilePos = VMKernel.swapTracer.get(
+                new Pair(entry.vpn, curProcessID)
+        );
+
+        if (swapFilePos == null) {
+            // check whether swapFile has any hole
+            if (!VMKernel.freePagesOFSwapFile.isEmpty()) {
+                swapFilePos = VMKernel.freePagesOFSwapFile.poll();
+            }
+            else { // need a new page from swapFile
+                swapFilePos = VMKernel.swapFile.length();
+            }
+
+            VMKernel.swapTracer.put(
+                    new Pair(entry.vpn, curProcessID),
+                    swapFilePos
+            );
+            Lib.assertTrue( swapFilePos % Processor.pageSize == 0);
+        }
+
+        // finally write it in the swap
+        int writtenAmount = VMKernel.swapFile.write(swapFilePos,
+                Machine.processor().getMemory(),
+                entry.ppn * Processor.pageSize, Processor.pageSize);
+
+        Lib.assertTrue(writtenAmount == Processor.pageSize);
+    }
+
     public TranslationEntry get (Pair key) {
-        TranslationEntry entry = table.get(key);
+       TranslationEntry entry = table.get(key);
 
         if (entry == null || !entry.valid) return null;
         return entry;

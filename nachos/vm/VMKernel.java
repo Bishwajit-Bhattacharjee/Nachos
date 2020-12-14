@@ -6,6 +6,7 @@ import nachos.userprog.*;
 import nachos.vm.*;
 
 import java.util.Hashtable;
+import java.util.LinkedList;
 import java.util.Objects;
 
 /**
@@ -17,8 +18,6 @@ public class VMKernel extends UserKernel {
      */
     public VMKernel() {
         super();
-        invertedPageTable = new InvertedPageTable(Machine
-                .processor().getNumPhysPages());
 
         //pageTableLock = new Lock();
     }
@@ -28,6 +27,11 @@ public class VMKernel extends UserKernel {
      */
     public void initialize(String[] args) {
         super.initialize(args);
+        invertedPageTable = new InvertedPageTable(Machine
+                .processor().getNumPhysPages());
+        swapFile = Machine.stubFileSystem().open("swapFile", true);
+        freePagesOFSwapFile = new LinkedList<>();
+        swapTracer = new Hashtable<>();
     }
 
     /**
@@ -48,6 +52,7 @@ public class VMKernel extends UserKernel {
      * Terminate this kernel. Never returns.
      */
     public void terminate() {
+        swapFile.close();
         super.terminate();
     }
 
@@ -60,8 +65,11 @@ public class VMKernel extends UserKernel {
     private static VMProcess dummy1 = null;
 
     // static variables
+    static OpenFile swapFile;
     static InvertedPageTable invertedPageTable;
+    static Hashtable<Pair, Integer> swapTracer;
     static Lock pageTableLock;
+    static LinkedList<Integer> freePagesOFSwapFile;
     private static final char dbgVM = 'v';
 }
 

@@ -571,7 +571,7 @@ public class UserProcess {
         killProcess(status, true);
     }
 
-    private void killProcess (int status, boolean normallyExited) {
+    protected void killProcess (int status, boolean normallyExited) {
 
         for (UserProcess child :  this.childProcesses) {
             child.parent = null;
@@ -754,6 +754,11 @@ public class UserProcess {
     protected KThread parentKThread;
     protected boolean joined = false;
     protected int exitStatus;
+
+    public int getProcessID() {
+        return processID;
+    }
+
     protected boolean normallyExited;
 
     protected static int aliveProcesses = 0;

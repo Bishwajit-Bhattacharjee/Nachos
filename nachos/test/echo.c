@@ -19,7 +19,7 @@ int main(int argc, char** argv)
         printf("\n");
     }
     printf("\n");
-   
+/*
     printf("Enter any string: ");
     readline(buf, 30);
     printf("INPUT by user : %s\n", buf);
@@ -48,7 +48,7 @@ int main(int argc, char** argv)
     num = join(3, &num);
     printf("Return for join on pid 3 : %d\n", num);
     printf("\n------------END CHECKING INVALID JOIN CALLS--------------\n");
-    
+ */
     halt();
    
     printf("Halt is not working!!\n");

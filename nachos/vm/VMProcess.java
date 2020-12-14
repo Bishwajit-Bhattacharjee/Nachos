@@ -24,6 +24,10 @@ public class VMProcess extends UserProcess {
      * Called by <tt>UThread.saveState()</tt>.
      */
     public void saveState() {
+
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+            writeTLBBack(i);
+        }
         super.saveState();
     }
 
@@ -54,7 +58,29 @@ public class VMProcess extends UserProcess {
 
     protected TranslationEntry loadPageIntoMemory (int vpn, int ppn) {
         // swap space checking
-        System.out.println("vpn " + vpn + " is loading!");
+
+        Pair key = new Pair(vpn, processID);
+
+        Integer swapPos = VMKernel.swapTracer.get(key);
+
+        if (swapPos != null) {
+            int readAmount = VMKernel.swapFile.read(swapPos,
+                    Machine.processor().getMemory(), ppn * Processor.pageSize,
+                    Processor.pageSize
+            );
+
+            Lib.assertTrue(readAmount == Processor.pageSize);
+
+            TranslationEntry entry = new TranslationEntry(
+                    vpn, ppn, true, false, false, false
+            );
+            VMKernel.invertedPageTable.put(new Pair(vpn, processID),
+                    entry);
+
+            return entry;
+        }
+
+        //System.out.println("vpn " + vpn + " is loading!");
 
         for (int s = 0; s < coff.getNumSections(); s++) {
             CoffSection section = coff.getSection(s);
@@ -85,8 +111,23 @@ public class VMProcess extends UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-        // need to invalidate invertedPageTable
-        //super.unloadSections();
+
+        // invertedPageTable invalidate
+        for (int vpn = 0; vpn < numPages; vpn++) {
+            TranslationEntry entry = VMKernel.invertedPageTable.
+                    get(new Pair(vpn, processID));
+            if(entry != null)
+                entry.valid = false;
+        }
+        // Free the swapSpace
+
+        for (int vpn = 0; vpn < numPages; vpn++) {
+            Integer swapFilePos = VMKernel.swapTracer.get(new Pair(vpn, processID));
+            if (swapFilePos != null) {
+                VMKernel.freePagesOFSwapFile.add(swapFilePos);
+                VMKernel.swapTracer.remove(new Pair(vpn, processID));
+            }
+        }
     }
 
     protected void handleTLBMiss (int vaddr) {
@@ -139,8 +180,6 @@ public class VMProcess extends UserProcess {
             Integer evictedPPN = VMKernel.invertedPageTable.
                     evictPhysicalPageNumber();
 
-            Lib.assertTrue(evictedPPN != -1);
-
             TranslationEntry loadedEntry = loadPageIntoMemory(vpn, evictedPPN);
 
             Machine.processor().writeTLBEntry(evictedTLBId, loadedEntry);
@@ -184,6 +223,7 @@ public class VMProcess extends UserProcess {
         Lib.assertNotReached();
     }
 
+
     /**
      * Handle a user exception. Called by
      * <tt>UserKernel.exceptionHandler()</tt>. The
@@ -200,7 +240,7 @@ public class VMProcess extends UserProcess {
 
             case Processor.exceptionTLBMiss:
                 handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
-                System.out.println("TLB miss!");
+                //System.out.println("TLB miss!");
                 break;
             default:
                 super.handleException(cause);
