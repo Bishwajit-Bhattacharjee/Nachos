@@ -28,15 +28,15 @@ void main()
     processID = exec("halt.coff", 1,  execArgs);
     k = join(processID, &status1);
     printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
-/*
+
     printf("mypr forking echo.coff, halt.coff and joining... \n");
     processID1 =exec("halt.coff", 2,  execArgs);
     int l = join(processID1, &status1);
     processID2 =exec("echo.coff", 3,  execArgs);
     int m = join(processID2, &status2);
     printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
-*/
-    //printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
+
+    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
     
     halt();
     /* not reached */

@@ -25,6 +25,9 @@ public class VMProcess extends UserProcess {
      */
     public void saveState() {
 
+        //System.out.println(processID + " will leave the cpu!");
+        if (isFinished) return;
+
         for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
             writeTLBBack(i);
         }
@@ -37,6 +40,7 @@ public class VMProcess extends UserProcess {
      */
     public void restoreState() {
 
+        //System.out.println(processID + " will acquire the cpu!");
         for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
            TranslationEntry entry = Machine.processor().readTLBEntry(i);
            entry.valid = false;
@@ -111,7 +115,10 @@ public class VMProcess extends UserProcess {
      * Release any resources allocated by <tt>loadSections()</tt>.
      */
     protected void unloadSections() {
-
+        Lib.assertTrue(isFinished);
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+            writeTLBBack(i);
+        }
         // invertedPageTable invalidate
         for (int vpn = 0; vpn < numPages; vpn++) {
             TranslationEntry entry = VMKernel.invertedPageTable.
@@ -155,6 +162,13 @@ public class VMProcess extends UserProcess {
         if (entry.valid && entry.dirty) {
             TranslationEntry pageTableEntry = VMKernel.
                     invertedPageTable.get( new Pair(entry.vpn, processID));
+
+            if (pageTableEntry == null) {
+                System.out.println("ProcessID " + processID + " " + VMKernel.currentProcess().getProcessID());
+                System.out.println(entry);
+                System.out.println(VMKernel.invertedPageTable.toString());
+            }
+
             Lib.assertTrue(pageTableEntry != null,
                     "TLB has an entry, pageTable doesn't");
 

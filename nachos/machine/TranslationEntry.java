@@ -78,4 +78,16 @@ public final class TranslationEntry {
      * user program.
      */
     public boolean dirty;
+
+    @Override
+    public String toString() {
+        return "TranslationEntry{" +
+                "vpn=" + vpn +
+                ", ppn=" + ppn +
+                ", valid=" + valid +
+                ", readOnly=" + readOnly +
+                ", used=" + used +
+                ", dirty=" + dirty +
+                '}';
+    }
 }

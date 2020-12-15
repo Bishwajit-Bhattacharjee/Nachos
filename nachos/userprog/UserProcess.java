@@ -349,16 +349,16 @@ public class UserProcess {
         this.argc = args.length;
         this.argv = entryOffset;
 
-        for (int i = 0; i < argv.length; i++) {
-            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-            Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
-            entryOffset += 4;
-            Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-                    argv[i].length);
-            stringOffset += argv[i].length;
-            Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
-            stringOffset += 1;
-        }
+        //for (int i = 0; i < argv.length; i++) {
+        //    byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+        //    Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
+        //    entryOffset += 4;
+        //    Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+        //            argv[i].length);
+        //    stringOffset += argv[i].length;
+        //    Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
+        //    stringOffset += 1;
+        //}
 
         return true;
     }
