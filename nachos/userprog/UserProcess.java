@@ -711,6 +711,10 @@ public class UserProcess {
                 break;
 
             default:
+                int vaddr = processor.readRegister(Processor.regBadVAddr);
+                int vpn = Processor.pageFromAddress(vaddr);
+
+                Lib.debug(dbgProcess, processID + " process  vpn : " + vpn);
                 Lib.debug(dbgProcess, "Unexpected exception: " +
                         Processor.exceptionNames[cause]);
 

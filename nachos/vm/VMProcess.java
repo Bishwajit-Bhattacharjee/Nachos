@@ -161,7 +161,7 @@ public class VMProcess extends UserProcess {
 
         if (entry.valid && entry.dirty) {
             TranslationEntry pageTableEntry = VMKernel.
-                    invertedPageTable.get( new Pair(entry.vpn, processID));
+                    invertedPageTable.get(new Pair(entry.vpn, processID));
 
             if (pageTableEntry == null) {
                 System.out.println("ProcessID " + processID + " " + VMKernel.currentProcess().getProcessID());
@@ -255,6 +255,21 @@ public class VMProcess extends UserProcess {
             case Processor.exceptionTLBMiss:
                 handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
                 //System.out.println("TLB miss!");
+                break;
+            case Processor.exceptionReadOnly:
+
+                int vaddr = processor.readRegister(Processor.regBadVAddr);
+                int vpn = Processor.pageFromAddress(vaddr);
+
+                Lib.debug(dbgVM, " Process ID " + processID);
+
+                for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+                    Lib.debug(dbgVM, Machine.processor().readTLBEntry(i).toString());
+                }
+                Lib.debug(dbgVM, " Page Table");
+                Lib.debug(dbgVM, VMKernel.invertedPageTable.toString());
+
+                super.handleException(cause);
                 break;
             default:
                 super.handleException(cause);
