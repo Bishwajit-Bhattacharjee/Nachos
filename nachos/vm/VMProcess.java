@@ -62,6 +62,13 @@ public class VMProcess extends UserProcess {
 
     protected TranslationEntry loadPageIntoMemory (int vpn, int ppn) {
         // swap space checking
+        Lib.debug(dbgVM, "porcessID " + processID);
+        Lib.debug(dbgVM, "loadPageIntoMemory vpn : " + vpn + " ppn : " + ppn);
+
+        Lib.assertTrue(processID == VMKernel.currentProcess().getProcessID());
+//        Lib.assertTrue(vpn < numPages-1);
+
+
 
         Pair key = new Pair(vpn, processID);
 
@@ -81,6 +88,8 @@ public class VMProcess extends UserProcess {
             VMKernel.invertedPageTable.put(new Pair(vpn, processID),
                     entry);
 
+            Lib.debug(dbgVM, "swap entry : " + entry.toString());
+
             return entry;
         }
 
@@ -89,7 +98,7 @@ public class VMProcess extends UserProcess {
         for (int s = 0; s < coff.getNumSections(); s++) {
             CoffSection section = coff.getSection(s);
 
-            if (vpn < section.getFirstVPN() + section.getLength()) {
+            if (vpn >= section.getFirstVPN() && vpn < section.getFirstVPN() + section.getLength()) {
                 int pos = vpn - section.getFirstVPN();
 
                 section.loadPage(pos, ppn);
@@ -253,21 +262,36 @@ public class VMProcess extends UserProcess {
         switch (cause) {
 
             case Processor.exceptionTLBMiss:
+                int vaddr = processor.readRegister(Processor.regBadVAddr);
+                int vpn = Processor.pageFromAddress(vaddr);
+
+//                Lib.debug(dbgVM, " Process ID " + processID +
+//                        "vpn " + vpn);
+//
+//                for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+//                    Lib.debug(dbgVM, Machine.processor().readTLBEntry(i).toString());
+//                }
+//                Lib.debug(dbgVM, " Page Table");
+//                Lib.debug(dbgVM, VMKernel.invertedPageTable.toString());
+
+
+
                 handleTLBMiss(processor.readRegister(Processor.regBadVAddr));
+
                 //System.out.println("TLB miss!");
                 break;
             case Processor.exceptionReadOnly:
 
-                int vaddr = processor.readRegister(Processor.regBadVAddr);
-                int vpn = Processor.pageFromAddress(vaddr);
-
-                Lib.debug(dbgVM, " Process ID " + processID);
-
-                for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
-                    Lib.debug(dbgVM, Machine.processor().readTLBEntry(i).toString());
-                }
-                Lib.debug(dbgVM, " Page Table");
-                Lib.debug(dbgVM, VMKernel.invertedPageTable.toString());
+//                int vaddr = processor.readRegister(Processor.regBadVAddr);
+//                int vpn = Processor.pageFromAddress(vaddr);
+//
+//                Lib.debug(dbgVM, " Process ID " + processID);
+//
+//                for (int i = 0; i < Machine.processor().getTLBSize(); i++) {
+//                    Lib.debug(dbgVM, Machine.processor().readTLBEntry(i).toString());
+//                }
+//                Lib.debug(dbgVM, " Page Table");
+//                Lib.debug(dbgVM, VMKernel.invertedPageTable.toString());
 
                 super.handleException(cause);
                 break;
@@ -277,6 +301,74 @@ public class VMProcess extends UserProcess {
         }
 
         Machine.interrupt().restore(intStatus);
+    }
+
+
+    protected void loadCmdArgs(byte[][] argv, String[] args)
+    {
+        int entryOffset = (numPages - 1) * pageSize;
+        int stringOffset = entryOffset + args.length * 4;
+
+        this.argc = args.length;
+        this.argv = entryOffset;
+
+        int swapFilePos = VMKernel.swapFile.length();
+        if (!VMKernel.freePagesOFSwapFile.isEmpty()) {
+            swapFilePos = VMKernel.freePagesOFSwapFile.poll();
+        }
+
+        VMKernel.swapTracer.put(
+                new Pair(numPages - 1, processID),
+                swapFilePos
+        );
+
+        int totalWritten = 0;
+
+
+        for (int i = 0; i < argv.length; i++) {
+            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+
+            int written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(entryOffset),
+                    stringOffsetBytes,
+                    0,
+                    stringOffsetBytes.length
+                    );
+            totalWritten += written;
+
+            Lib.assertTrue(written == 4);
+
+            entryOffset += 4;
+
+            written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
+                    argv[i],
+                    0,
+                    argv[i].length
+            );
+            totalWritten += written;
+
+            Lib.assertTrue(written == argv[i].length);
+
+            stringOffset += argv[i].length;
+
+            written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
+                    new byte[]{0},
+                    0,
+                    1
+            );
+            totalWritten += written;
+
+            Lib.assertTrue(written == 1);
+
+            stringOffset += 1;
+        }
+
+        byte[] dummy = new byte[Processor.pageSize - totalWritten];
+        int written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
+                dummy,
+                0,
+                dummy.length
+        );
+        Lib.assertTrue(written == dummy.length);
     }
 
     private static final int pageSize = Processor.pageSize;

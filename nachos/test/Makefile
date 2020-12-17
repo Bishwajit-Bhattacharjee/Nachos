@@ -30,7 +30,7 @@ STDLIB_O = start.o stdio.o stdlib.o
 LIB = assert atoi printf readline stdio strncmp strcat strcmp strcpy strlen memcpy memset
 NLIB = libnachos.a
 
-TARGETS = halt sh matmult sort echo cat cp mv rm mypgr triangle my_echo my_join my_exit my_exit_child my_print my_print_child my_test #chat chatserver
+TARGETS = halt sh matmult sort echo cat cp mv rm mypgr triangle my_echo my_join my_exit my_exit_child my_print my_print_child my_test dbg dbg_echo#chat chatserver
 
 .SECONDARY: $(patsubst %.c,%.o,$(wildcard *.c))
 

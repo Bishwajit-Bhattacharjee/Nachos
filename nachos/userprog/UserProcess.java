@@ -343,24 +343,62 @@ public class UserProcess {
             return false;
 
         // store arguments in last page
+        loadCmdArgs(argv, args);
+
+//        int entryOffset = (numPages - 1) * pageSize;
+//        int stringOffset = entryOffset + args.length * 4;
+//
+//        this.argc = args.length;
+//        this.argv = entryOffset;
+//
+//
+//
+//        for (int i = 0; i < argv.length; i++) {
+//            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+//            Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
+//            entryOffset += 4;
+//            Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+//                    argv[i].length);
+//            stringOffset += argv[i].length;
+//            Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
+//            stringOffset += 1;
+//        }
+
+
+//        for (int i = 0; i < argv.length; i++) {
+//            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+//            Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
+//            entryOffset += 4;
+//            Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+//                    argv[i].length);
+//            stringOffset += argv[i].length;
+//            Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
+//            stringOffset += 1;
+//        }
+
+        return true;
+    }
+
+    protected void loadCmdArgs(byte[][] argv, String[] args)
+    {
         int entryOffset = (numPages - 1) * pageSize;
         int stringOffset = entryOffset + args.length * 4;
 
         this.argc = args.length;
         this.argv = entryOffset;
 
-        //for (int i = 0; i < argv.length; i++) {
-        //    byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
-        //    Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
-        //    entryOffset += 4;
-        //    Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
-        //            argv[i].length);
-        //    stringOffset += argv[i].length;
-        //    Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
-        //    stringOffset += 1;
-        //}
 
-        return true;
+
+        for (int i = 0; i < argv.length; i++) {
+            byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
+            Lib.assertTrue(writeVirtualMemory(entryOffset, stringOffsetBytes) == 4);
+            entryOffset += 4;
+            Lib.assertTrue(writeVirtualMemory(stringOffset, argv[i]) ==
+                    argv[i].length);
+            stringOffset += argv[i].length;
+            Lib.assertTrue(writeVirtualMemory(stringOffset, new byte[]{0}) == 1);
+            stringOffset += 1;
+        }
     }
 
     /**
@@ -503,6 +541,8 @@ public class UserProcess {
     }
 
     private int handleExec (int fileNameVaddr, int argc, int argvVaddr) {
+        Lib.debug(dbgProcess, "in exec with filename" +
+                Processor.pageFromAddress(fileNameVaddr));
 
         String processName = readVirtualMemoryString(fileNameVaddr, 256);
 
@@ -538,6 +578,7 @@ public class UserProcess {
 
     private int handleJoin (int childProcessID, int statusPointer) {
 
+        Lib.debug(dbgProcess,"in join with " + childProcessID + " " + statusPointer );
 
         UserProcess childProcess = null;
         for (UserProcess child : childProcesses) {
@@ -749,7 +790,7 @@ public class UserProcess {
     protected final int stackPages = 8;
 
     private int initialPC, initialSP;
-    private int argc, argv;
+    protected int argc, argv;
 
     protected int processID;
     protected UserProcess parent;
