@@ -2,5 +2,9 @@
 
 void main()
 {
-    printf("s\n");
+    char *execArgs[256];
+    int status1,processID,k;
+    processID = exec("halt.coff", 1,  execArgs);
+    k = join(processID, &status1);
+    printf("2nd process ending\n");
 }

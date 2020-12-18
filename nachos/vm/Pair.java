@@ -17,6 +17,10 @@ public class Pair {
                 '}';
     }
 
+    public Integer getPid() {
+        return pid;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

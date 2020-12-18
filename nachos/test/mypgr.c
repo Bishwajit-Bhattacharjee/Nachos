@@ -15,32 +15,29 @@
 void main()
 {
     char b[10];
-    //readline(b, 10);
+    readline(b, 10);
     char *execArgs[256];
     int status1,processID, processID1, processID2, status2, k, l, m;
     printf("\n\n********************************** mypgr Program Loading-test **********************************\n\n");
     printf("mypgr forking echo.coff and joining... \n");
     processID = exec("echo.coff", 1,  execArgs);
     k = join(processID, &status1);
-    printf("foul 1\n");
-    printf("foul 2\n");
-    printf("foul 3\n");
-//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
-//
-//    printf("mypgr forking halt.coff and joining... \n");
-//    processID = exec("halt.coff", 1,  execArgs);
-//    k = join(processID, &status1);
-//    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
-//
-//    printf("mypr forking echo.coff, halt.coff and joining... \n");
-//    processID1 =exec("halt.coff", 2,  execArgs);
-//    l = join(processID1, &status1);
-//    processID2 =exec("echo.coff", 3,  execArgs);
-//    m = join(processID2, &status2);
-//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
-//
-//    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
-//
-//      halt();
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
+    printf("mypgr forking halt.coff and joining... \n");
+    processID = exec("halt.coff", 1,  execArgs);
+    k = join(processID, &status1);
+    printf("********* Join On Process %d Finished\nStatus Value:  %d    ***************\n", processID, status1);
+
+    printf("mypr forking echo.coff, halt.coff and joining... \n");
+    processID1 =exec("halt.coff", 2,  execArgs);
+    l = join(processID1, &status1);
+    processID2 =exec("echo.coff", 3,  execArgs);
+    m = join(processID2, &status2);
+    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID1, status1);
+
+    printf("*********   Join On Process %d Finished\nStatus Value:  %d   ***************\n", processID2, status2);
+
+      halt();
     /* not reached */
 }

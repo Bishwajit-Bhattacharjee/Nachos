@@ -57,7 +57,7 @@ public class InvertedPageTable {
                 TranslationEntry replacingEntry = entry.getValue();
 
                 if (replacingEntry.dirty) {
-                    writeBackToSwap(replacingEntry);
+                    writeBackToSwap(replacingEntry, entry.getKey().getPid());
                 }
 
                 table.remove(entry.getKey());
@@ -69,11 +69,10 @@ public class InvertedPageTable {
 
     }
 
-    public void writeBackToSwap (TranslationEntry entry) {
-        int curProcessID = VMKernel.currentProcess().getProcessID();
+    public void writeBackToSwap (TranslationEntry entry, int evictedProcessID) {
 
         Integer swapFilePos = VMKernel.swapTracer.get(
-                new Pair(entry.vpn, curProcessID)
+                new Pair(entry.vpn, evictedProcessID)
         );
 
         if (swapFilePos == null) {
@@ -86,7 +85,7 @@ public class InvertedPageTable {
             }
 
             VMKernel.swapTracer.put(
-                    new Pair(entry.vpn, curProcessID),
+                    new Pair(entry.vpn, evictedProcessID),
                     swapFilePos
             );
             Lib.assertTrue( swapFilePos % Processor.pageSize == 0);
