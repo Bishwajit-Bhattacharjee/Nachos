@@ -15,12 +15,13 @@
 int main()
 {
     char *execArgs[256];
-    printf("halt started!\n");
-    printf("halt prints a line.\n");
-    printf("halt prints another line.\n");
-    printf("halt tries to halt Nachos\n");
-    halt();
-    printf("Nachos not halted!\n");
+//    printf("halt started!\n");
+//    printf("halt prints a line.\n");
+//    printf("halt prints another line.\n");
+//    printf("halt tries to halt Nachos\n");
+//    halt();
+//    printf("Nachos not halted!\n");
+    printf("3rd process ending\n");
     //int k, processID, status1;
     //processID = exec("halt.coff", 1,  execArgs);
     //k = join(processID, &status1);

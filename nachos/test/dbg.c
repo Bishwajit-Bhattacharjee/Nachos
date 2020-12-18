@@ -5,6 +5,7 @@ void main()
 
 
     char *execArgs[256];
+//    execArgs[0] = "bishwa";
     int status1,processID,k;
     processID = exec("dbg_echo.coff", 1,  execArgs);
     k = join(processID, &status1);

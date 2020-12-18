@@ -66,7 +66,7 @@ public class VMKernel extends UserKernel {
 
     // static variables
     static OpenFile swapFile;
-    static InvertedPageTable invertedPageTable;
+    public static InvertedPageTable invertedPageTable;
     static Hashtable<Pair, Integer> swapTracer;
     static Lock pageTableLock;
     static LinkedList<Integer> freePagesOFSwapFile;

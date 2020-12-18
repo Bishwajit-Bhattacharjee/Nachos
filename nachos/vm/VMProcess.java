@@ -62,8 +62,8 @@ public class VMProcess extends UserProcess {
 
     protected TranslationEntry loadPageIntoMemory (int vpn, int ppn) {
         // swap space checking
-        Lib.debug(dbgVM, "porcessID " + processID);
-        Lib.debug(dbgVM, "loadPageIntoMemory vpn : " + vpn + " ppn : " + ppn);
+//        Lib.debug(dbgVM, "porcessID " + processID);
+//        Lib.debug(dbgVM, "loadPageIntoMemory vpn : " + vpn + " ppn : " + ppn);
 
         Lib.assertTrue(processID == VMKernel.currentProcess().getProcessID());
 //        Lib.assertTrue(vpn < numPages-1);

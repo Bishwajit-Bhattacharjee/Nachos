@@ -3,6 +3,7 @@ package nachos.userprog;
 import nachos.machine.*;
 import nachos.threads.*;
 import nachos.userprog.*;
+import nachos.vm.VMKernel;
 
 import javax.crypto.Mac;
 import java.io.EOFException;
@@ -108,6 +109,8 @@ public class UserProcess {
 
         int bytesRead = readVirtualMemory(vaddr, bytes);
 
+        Lib.debug('v', "bytesread " + bytesRead);
+
         for (int length = 0; length < bytesRead; length++) {
             if (bytes[length] == 0)
                 return new String(bytes, 0, length);
@@ -162,6 +165,7 @@ public class UserProcess {
             int vpn = pageFromAddress(vaddr);
 
             if (!checkValidVPN(vpn)) {
+                Lib.debug('v', "invalid vpn " + vpn);
                 return -1;
             }
 
@@ -288,6 +292,12 @@ public class UserProcess {
      */
     private boolean load(String name, String[] args) {
         Lib.debug(dbgProcess, "UserProcess.load(\"" + name + "\")");
+
+        Lib.debug('v', "processname " + name);
+        for (int i=0;i<args.length;i++)
+        {
+            Lib.debug('v', "args" + i + " =" + args[i]);
+        }
 
         OpenFile executable = ThreadedKernel.fileSystem.open(name, false);
         if (executable == null) {
@@ -546,22 +556,34 @@ public class UserProcess {
 
         String processName = readVirtualMemoryString(fileNameVaddr, 256);
 
+        Lib.debug('v', "processName " + processName);
+
         if (processName == null || !processName.endsWith(".coff")) {
             return -1;
         }
 
         String argv[] = new String[argc];
 
+
         for(int i = 0; i < argc; i++) {
             byte[] startingAddrBytes = new byte[4];
             readVirtualMemory(argvVaddr, startingAddrBytes);
 
+            Lib.debug('v', "readMem " + Lib.bytesToInt(startingAddrBytes,0));
+
             int startingAddr = Lib.bytesToInt(startingAddrBytes, 0);
             argv[i] = readVirtualMemoryString(startingAddr, 256);
 
-            argvVaddr += 4;
-        }
+            if(argv[i] == null)
+                argv[i] = "";
 
+            Lib.debug('v', "processId: " + processID +
+                    "argv" + i + " :" + argv[i]);
+
+            argvVaddr += 4;
+
+
+        }
 
         UserProcess child = newUserProcess();
         int childID = -1;
@@ -764,6 +786,16 @@ public class UserProcess {
                 Lib.assertNotReached("Unexpected exception");
         }
         Machine.interrupt().restore(intStatus);
+    }
+
+    public static void printState()
+    {
+        for (int i = 0; i < Machine.processor().getTLBSize(); i++)
+        {
+            Lib.debug('v', Machine.processor().readTLBEntry(i).toString());
+        }
+
+        Lib.debug('v', VMKernel.invertedPageTable.toString());
     }
 
     private OpenFile stdin = null;
