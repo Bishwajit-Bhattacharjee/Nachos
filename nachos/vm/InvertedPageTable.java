@@ -61,6 +61,9 @@ public class InvertedPageTable {
                 }
 
                 table.remove(entry.getKey());
+
+                VMKernel.ppnMisses[tmpPPN]++;
+
                 return tmpPPN; // found a free ppn
             }
         }
@@ -79,15 +82,18 @@ public class InvertedPageTable {
             // check whether swapFile has any hole
             if (!VMKernel.freePagesOFSwapFile.isEmpty()) {
                 swapFilePos = VMKernel.freePagesOFSwapFile.poll();
+                Lib.debug('v', "swapfilepos1 " + swapFilePos);
             }
             else { // need a new page from swapFile
                 swapFilePos = VMKernel.swapFile.length();
+                Lib.debug('v', "swapfilepos2 " + swapFilePos);
             }
 
             VMKernel.swapTracer.put(
                     new Pair(entry.vpn, evictedProcessID),
                     swapFilePos
             );
+
             Lib.assertTrue( swapFilePos % Processor.pageSize == 0);
         }
 
@@ -95,6 +101,12 @@ public class InvertedPageTable {
         int writtenAmount = VMKernel.swapFile.write(swapFilePos,
                 Machine.processor().getMemory(),
                 entry.ppn * Processor.pageSize, Processor.pageSize);
+
+        if (writtenAmount != Processor.pageSize){
+            Lib.debug('v', "killed " + writtenAmount);
+            VMKernel.kernelLock.release();
+            VMKernel.currentProcess().killProcess(3, false);
+        }
 
         Lib.assertTrue(writtenAmount == Processor.pageSize);
     }

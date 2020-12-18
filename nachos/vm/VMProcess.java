@@ -80,6 +80,10 @@ public class VMProcess extends UserProcess {
                     Processor.pageSize
             );
 
+            if (readAmount != Processor.pageSize){
+                VMKernel.currentProcess().killProcess(3, false);
+            }
+
             Lib.assertTrue(readAmount == Processor.pageSize);
 
             TranslationEntry entry = new TranslationEntry(
@@ -147,7 +151,6 @@ public class VMProcess extends UserProcess {
     }
 
     protected void handleTLBMiss (int vaddr) {
-
         int vpn = Processor.pageFromAddress(vaddr);
         bringPage(vpn);
     }
@@ -187,6 +190,10 @@ public class VMProcess extends UserProcess {
     }
 
     protected TranslationEntry bringPage (int vpn) {
+
+        VMKernel.kernelLock.acquire();
+
+
         Pair key = new Pair(vpn, processID);
 
         int evictedTLBId = findTLBIndToEvict();
@@ -197,15 +204,22 @@ public class VMProcess extends UserProcess {
 
         if (alreadyFoundEntry != null){ // Page Table Hit
             Machine.processor().writeTLBEntry(evictedTLBId, alreadyFoundEntry);
+
+            VMKernel.kernelLock.release();
+
             return alreadyFoundEntry;
         }
         else {     // Page Table miss
+
+            VMKernel.pageFault++;
+
             Integer evictedPPN = VMKernel.invertedPageTable.
                     evictPhysicalPageNumber();
 
             TranslationEntry loadedEntry = loadPageIntoMemory(vpn, evictedPPN);
-
             Machine.processor().writeTLBEntry(evictedTLBId, loadedEntry);
+
+            VMKernel.kernelLock.release();
 
             return loadedEntry;
         }
@@ -221,6 +235,10 @@ public class VMProcess extends UserProcess {
                 return tlbEntry;
             }
         }
+
+        VMKernel.readWriteTLBMiss++;
+
+
 
         return bringPage(vpn);
     }
@@ -256,7 +274,7 @@ public class VMProcess extends UserProcess {
      * @param	cause	the user exception that occurred.
      */
     public void handleException(int cause) {
-        boolean intStatus = Machine.interrupt().disable();
+//        boolean intStatus = Machine.interrupt().disable();
         Processor processor = Machine.processor();
 
         switch (cause) {
@@ -300,12 +318,16 @@ public class VMProcess extends UserProcess {
                 break;
         }
 
-        Machine.interrupt().restore(intStatus);
+//        Machine.interrupt().restore(intStatus);
     }
 
 
     protected void loadCmdArgs(byte[][] argv, String[] args)
     {
+
+
+        Lib.debug('v', "at beginning " + VMKernel.swapFile.length());
+
         int entryOffset = (numPages - 1) * pageSize;
         int stringOffset = entryOffset + args.length * 4;
 
@@ -324,51 +346,49 @@ public class VMProcess extends UserProcess {
 
         int totalWritten = 0;
 
+        byte[] buff = new byte[Processor.pageSize];
 
         for (int i = 0; i < argv.length; i++) {
+
             byte[] stringOffsetBytes = Lib.bytesFromInt(stringOffset);
 
-            int written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(entryOffset),
-                    stringOffsetBytes,
-                    0,
-                    stringOffsetBytes.length
-                    );
-            totalWritten += written;
+            System.arraycopy(stringOffsetBytes, 0, buff, totalWritten, 4);
 
-            Lib.assertTrue(written == 4);
+            totalWritten += 4;
+
 
             entryOffset += 4;
 
-            written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
-                    argv[i],
-                    0,
-                    argv[i].length
-            );
-            totalWritten += written;
+            System.arraycopy(argv[i], 0, buff, totalWritten, argv[i].length);
 
-            Lib.assertTrue(written == argv[i].length);
+            totalWritten += argv[i].length;
 
             stringOffset += argv[i].length;
 
-            written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
-                    new byte[]{0},
-                    0,
-                    1
-            );
-            totalWritten += written;
+            System.arraycopy(new byte[]{0}, 0, buff, totalWritten, 1);
 
-            Lib.assertTrue(written == 1);
+            totalWritten += 1;
 
             stringOffset += 1;
         }
 
         byte[] dummy = new byte[Processor.pageSize - totalWritten];
-        int written = VMKernel.swapFile.write(swapFilePos + Processor.offsetFromAddress(stringOffset),
-                dummy,
-                0,
-                dummy.length
-        );
-        Lib.assertTrue(written == dummy.length);
+
+        System.arraycopy(dummy, 0, buff, totalWritten, dummy.length);
+
+        VMKernel.kernelLock.acquire();
+
+        int writtenAmount = VMKernel.swapFile.write(swapFilePos,
+                buff, 0, Processor.pageSize);
+
+        VMKernel.kernelLock.release();
+
+        if (writtenAmount != Processor.pageSize){
+            Lib.debug('v', "written swap amount " + writtenAmount);
+            VMKernel.currentProcess().killProcess(3, false);
+        }
+
+
     }
 
     private static final int pageSize = Processor.pageSize;

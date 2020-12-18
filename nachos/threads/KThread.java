@@ -305,7 +305,11 @@ public class KThread {
 
         idleThread = new KThread(new Runnable() {
             public void run() {
-                while (true) yield();
+
+                while (true) {
+                    Lib.debug('t', "tick " + Machine.timer().getTime());
+                    yield();
+                }
             }
         });
         idleThread.setName("idle");

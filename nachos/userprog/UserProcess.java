@@ -599,6 +599,7 @@ public class UserProcess {
     }
 
     private int handleJoin (int childProcessID, int statusPointer) {
+        boolean status1 = Machine.interrupt().disable();
 
         Lib.debug(dbgProcess,"in join with " + childProcessID + " " + statusPointer );
 
@@ -622,6 +623,7 @@ public class UserProcess {
 
         childProcesses.remove(childProcess); // disown this child
 
+        Machine.interrupt().restore(status1);
 
         if (childProcess.normallyExited)
             return 1;
@@ -634,7 +636,9 @@ public class UserProcess {
         killProcess(status, true);
     }
 
-    protected void killProcess (int status, boolean normallyExited) {
+    public void killProcess (int status, boolean normallyExited) {
+
+        boolean status1 = Machine.interrupt().disable();
 
         for (UserProcess child :  this.childProcesses) {
             child.parent = null;
@@ -758,7 +762,7 @@ public class UserProcess {
      * @param    cause    the user exception that occurred.
      */
     public void handleException(int cause) {
-        boolean intStatus = Machine.interrupt().disable();
+//        boolean intStatus = Machine.interrupt().disable();
         Processor processor = Machine.processor();
 
         switch (cause) {
@@ -785,7 +789,7 @@ public class UserProcess {
 
                 Lib.assertNotReached("Unexpected exception");
         }
-        Machine.interrupt().restore(intStatus);
+//        Machine.interrupt().restore(intStatus);
     }
 
     public static void printState()
